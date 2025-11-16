@@ -4,6 +4,49 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 ---
 
+## [2.1.0] - 2025-11-16
+
+### 🚀 Lançamento Público
+
+- **Repositório Público** - Bot publicado no GitHub como open-source
+- **Documentação Completa** - README.md expandido com instruções detalhadas de instalação
+- **Limpeza de Código** - Remoção de referências a versões e branding "profissional"
+- **Sanitização de Dados** - Remoção de IDs e dados sensíveis do código
+
+### 🎮 Novos Comandos
+
+- `/shipadm` - Comando admin para trollar com percentagens customizadas de ship
+
+### 🔧 Melhorias
+
+- **Ship Command** - Agora totalmente aleatório (removido seed por IDs)
+- **Timeouts Fixes** - Adicionado `defer()` nos comandos ship para evitar timeouts
+- **Português de Portugal** - Toda a documentação convertida para PT-PT
+- **FFmpeg External** - Binários do FFmpeg removidos do repositório (utilizadores instalam manualmente)
+
+### 🧹 Código Limpo
+
+- Removidas referências a "v2.0" e "Profissional" de todos os ficheiros
+- Simplificados docstrings e comentários
+- `__version__` removido dos módulos `__init__.py`
+- Pasta `backup_v1/` excluída do repositório
+
+### 📚 Documentação
+
+- **README.md** - Instruções completas de instalação, configuração e troubleshooting
+- **TODO.md** - Ficheiro de tarefas futuras adicionado
+- **CHANGELOG.md** - Histórico de versões atualizado
+- **.gitignore** - Configurado para proteger dados sensíveis e backups
+
+### 🛡️ Segurança
+
+- IDs hardcoded removidos (SERVER_ID, MOD_ROLE_ID)
+- Configuração 100% via `.env`
+- Disclaimers legais adicionados
+- Avisos sobre conhecimentos necessários
+
+---
+
 ## [2.0.0] - 2024-12
 
 ### 🎉 Principais Mudanças
