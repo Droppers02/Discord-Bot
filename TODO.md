@@ -7,14 +7,17 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 ## 🐛 Bugs Conhecidos
 
 ### Alta Prioridade
+
 - [ ] Verificar estabilidade do player de música em sessões longas
 - [ ] Corrigir possível memory leak em comandos de música com fila grande
 
 ### Média Prioridade
+
 - [ ] Melhorar tratamento de erros em comandos de economia
 - [ ] Validar comportamento do sistema de tickets com múltiplos utilizadores simultâneos
 
 ### Baixa Prioridade
+
 - [ ] Optimizar queries da base de dados para servidores grandes
 - [ ] Melhorar mensagens de erro para utilizadores (mais user-friendly)
 
@@ -23,6 +26,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 ## ✨ Funcionalidades Planeadas
 
 ### Sistema de Economia
+
 - [ ] Loja de roles customizadas com cores
 - [ ] Sistema de trading entre utilizadores
 - [ ] Eventos especiais com bónus de moedas
@@ -31,6 +35,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Leilões de itens raros
 
 ### Sistema Social
+
 - [ ] Sistema de badges personalizados
 - [ ] Perfis customizáveis
 - [ ] Sistema de casamento entre utilizadores
@@ -39,6 +44,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Sistema de recompensas por streak
 
 ### Jogos
+
 - [ ] Adicionar poker Texas Hold'em
 - [ ] Sistema de torneios
 - [ ] Estatísticas detalhadas por jogo
@@ -47,6 +53,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Sistema de apostas em eventos
 
 ### Música
+
 - [ ] Suporte para Spotify
 - [ ] Playlists guardadas
 - [ ] Sistema de votação para skip
@@ -55,6 +62,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Histórico de músicas tocadas
 
 ### Moderação
+
 - [ ] Sistema de auto-moderação (anti-spam, anti-raid)
 - [ ] Logs detalhados de ações de moderação
 - [ ] Sistema de appeals para bans
@@ -63,6 +71,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Sistema de quarentena para novos membros
 
 ### Tickets
+
 - [ ] Templates de respostas rápidas
 - [ ] Sistema de prioridades
 - [ ] Atribuição automática de staff
@@ -71,6 +80,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Integração com sistema de logs
 
 ### Utilidades
+
 - [ ] Sistema de lembretes recorrentes
 - [ ] Polls/votações avançadas
 - [ ] Sistema de anúncios agendados
@@ -79,6 +89,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Sistema de verificação (captcha)
 
 ### Interface & UX
+
 - [ ] Dashboard web para configuração
 - [ ] Comandos com autocomplete
 - [ ] Menus contextuais (apps)
@@ -91,6 +102,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 ## 🔧 Melhorias Técnicas
 
 ### Performance
+
 - [ ] Implementar caching para queries frequentes
 - [ ] Optimizar carregamento de cogs
 - [ ] Reduzir uso de memória em operações de música
@@ -98,6 +110,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Lazy loading de recursos pesados
 
 ### Database
+
 - [ ] Migração para PostgreSQL (opcional)
 - [ ] Sistema de backups incrementais
 - [ ] Compressão de logs antigos
@@ -105,6 +118,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Limpeza automática de dados antigos
 
 ### Código
+
 - [ ] Adicionar testes unitários
 - [ ] Implementar CI/CD
 - [ ] Melhorar documentação inline
@@ -113,6 +127,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Docstrings em todos os comandos
 
 ### Segurança
+
 - [ ] Implementar rate limiting por utilizador
 - [ ] Sistema de permissões mais granular
 - [ ] Audit log para ações críticas
@@ -120,6 +135,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Validação de inputs mais rigorosa
 
 ### Logging & Monitoring
+
 - [ ] Integração com serviços de monitoring (Sentry, etc.)
 - [ ] Métricas de uso de comandos
 - [ ] Alertas para erros críticos
@@ -173,18 +189,21 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 ## 📊 Prioridades
 
 ### Versão 2.2 (Próximo Release)
+
 1. Corrigir bugs conhecidos de alta prioridade
 2. Sistema de auto-moderação básico
 3. Melhorias no sistema de economia (loja de roles)
 4. Adicionar testes unitários básicos
 
 ### Versão 2.3
+
 1. Dashboard web
 2. Sistema de achievements
 3. Melhorias de performance
 4. Multi-idioma (EN + PT)
 
 ### Versão 3.0 (Futuro)
+
 1. Refactoring completo da arquitetura
 2. PostgreSQL como opção de database
 3. API pública
