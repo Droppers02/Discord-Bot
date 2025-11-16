@@ -385,24 +385,6 @@ class Tickets(commands.Cog):
     async def setup_tickets(self, interaction: discord.Interaction):
         """Configura painel de tickets"""
         
-        # Responder imediatamente para evitar timeout
-        await interaction.response.defer(ephemeral=True)
-        
-        # Stats
-        stats = await self.db.execute(
-            "SELECT COUNT(*) FROM tickets WHERE status = 'closed'",
-            ()
-        )
-        total_closed = stats[0][0] if stats else 0
-        
-        stats = await self.db.execute(
-            "SELECT COUNT(*) FROM tickets",
-            ()
-        )
-        total_created = stats[0][0] if stats else 0
-        
-        resolution_rate = round((total_closed / max(total_created, 1)) * 100)
-        
         # Embed
         embed = EmbedBuilder.create(
             title="🎫 Sistema de Tickets",
@@ -433,18 +415,10 @@ class Tickets(commands.Cog):
             inline=True
         )
         
-        embed.add_field(
-            name="📊 Stats",
-            value=f"**Criados:** {total_created}\n"
-                  f"**Fechados:** {total_closed}\n"
-                  f"**Taxa:** {resolution_rate}%",
-            inline=True
-        )
-        
         if interaction.guild.icon:
             embed.set_thumbnail(url=interaction.guild.icon.url)
         
-        await interaction.followup.send("✅ Painel configurado!", ephemeral=True)
+        await interaction.response.send_message("✅ Painel configurado!", ephemeral=True)
         await interaction.channel.send(embed=embed, view=TicketPanelView())
     
     @app_commands.command(name="fecharticket", description="Fecha o ticket atual")

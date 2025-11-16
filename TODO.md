@@ -75,9 +75,10 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [ ] Templates de respostas rápidas
 - [ ] Sistema de prioridades
 - [ ] Atribuição automática de staff
-- [ ] Estatísticas de tickets (tempo médio, etc.)
+- [ ] Estatísticas de tickets (tempo médio, etc.) - Adicionar estatísticas em tempo real ao painel setup_tickets
 - [ ] Sistema de feedback após fechamento
 - [ ] Integração com sistema de logs
+- [ ] Optimizar queries da base de dados no comando /setup_tickets para evitar timeouts
 
 ### Utilidades
 
