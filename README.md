@@ -82,39 +82,52 @@ Você precisa ter conhecimentos em:
 ### 1. Clonar o Repositório
 
 ```bash
-git clone https://github.com/SEU_USERNAME/EPA-BOT.git
-cd EPA-BOT
+git clone https://github.com/Droppers02/Discord-Bot.git
+cd Discord-Bot
 ```
 
-### 2. Instalar Dependências
+### 2. Instalar Dependências Python
 
 **Windows:**
 
 ```bash
-# Execute o script de instalação automática
-install.bat
-
-# OU manualmente:
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
 **Linux/Mac:**
 
 ```bash
+python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 ```
 
+**Dependências incluídas:**
+
+- `discord.py>=2.4.0` - Biblioteca principal do Discord
+- `aiosqlite>=0.20.0` - Base de dados assíncrona
+- `python-dotenv>=1.0.0` - Gestão de variáveis de ambiente
+- `Pillow>=10.0.0` - Manipulação de imagens
+- `psutil>=5.9.0` - Monitoramento do sistema
+- `aiofiles>=23.0.0` - Operações de ficheiros assíncronas
+- `yt-dlp>=2024.0.0` - Download de música do YouTube
+- `PyNaCl>=1.5.0` - Codec de áudio para Discord
+
 ### 3. Instalar FFmpeg
+
+⚠️ **OBRIGATÓRIO** para comandos de música funcionar!
 
 **Windows:**
 
-- Baixe: https://ffmpeg.org/download.html
-- Extraia para `bin/ffmpeg/`
-- Adicione ao PATH do sistema
+1. Baixe: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+2. Extraia o conteúdo
+3. Copie os ficheiros `ffmpeg.exe`, `ffplay.exe` e `ffprobe.exe` para `bin/ffmpeg/`
+4. **OU** adicione FFmpeg ao PATH do sistema
 
-**Linux:**
+**Linux (Ubuntu/Debian):**
 
 ```bash
+sudo apt update
 sudo apt install ffmpeg
 ```
 
@@ -123,6 +136,74 @@ sudo apt install ffmpeg
 ```bash
 brew install ffmpeg
 ```
+
+**Verificar instalação:**
+
+```bash
+ffmpeg -version
+```
+
+### 4. Criar Estrutura de Pastas
+
+O bot precisa destas pastas (criadas automaticamente na primeira execução):
+
+```bash
+mkdir data logs bin/ffmpeg
+```
+
+### 5. Executar o Bot
+
+**Windows:**
+
+```bash
+python main.py
+```
+
+**Linux/Mac:**
+
+```bash
+python3 main.py
+```
+
+**Primeira execução:**
+
+- O bot criará automaticamente a base de dados SQLite
+- Fará backup dos ficheiros JSON existentes (se houver)
+- Migrará dados antigos para o novo sistema
+
+**O bot está pronto quando ver:**
+
+```
+✅ Bot iniciado como: NomeDoBot#1234
+✅ Conectado a X servidor(es)
+✅ X comandos sincronizados
+```
+
+---
+
+## 🐛 Resolução de Problemas
+
+### Bot não inicia
+
+- ✅ Verificar se o token está correto no `.env`
+- ✅ Verificar se todas as dependências estão instaladas
+- ✅ Verificar a versão do Python (`python --version`)
+
+### Comandos de música não funcionam
+
+- ✅ Verificar se FFmpeg está instalado (`ffmpeg -version`)
+- ✅ Verificar se FFmpeg está no PATH ou em `bin/ffmpeg/`
+
+### Base de dados não funciona
+
+- ✅ Verificar permissões da pasta `data/`
+- ✅ Deletar `data/epa_bot.db` e reiniciar (⚠️ perde dados)
+
+### Comandos não aparecem no Discord
+
+- ✅ Aguardar até 1 hora (comandos globais)
+- ✅ Verificar permissões do bot no servidor
+- ✅ Reiniciar o bot e o Discord
 
 ---
 
