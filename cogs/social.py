@@ -28,6 +28,7 @@ class SocialCog(commands.Cog):
         # Cooldowns para XP e reputação
         self.xp_cooldowns = {}
         self.rep_cooldowns = {}
+        self.levelup_notified = {}  # Evitar notificações duplicadas de level up
     
     async def cog_load(self):
         """Carregado quando o cog é inicializado"""
@@ -157,16 +158,27 @@ class SocialCog(commands.Cog):
         
         # Se subiu de nível, enviar mensagem
         if new_level > old_level:
-            embed = EmbedBuilder.level_up(
-                user=message.author,
-                level=new_level,
-                xp=user_data['xp']
-            )
+            # Verificar se já notificamos este level up (evitar duplicados)
+            levelup_key = f"{user_id}_{guild_id}_{new_level}"
             
-            try:
-                await message.channel.send(embed=embed, delete_after=10)
-            except:
-                pass
+            if levelup_key not in self.levelup_notified:
+                self.levelup_notified[levelup_key] = now
+                
+                embed = EmbedBuilder.level_up(
+                    user=message.author,
+                    level=new_level,
+                    xp=user_data['xp']
+                )
+                
+                try:
+                    await message.channel.send(embed=embed, delete_after=10)
+                except:
+                    pass
+            
+            # Limpar notificações antigas (mais de 5 minutos)
+            old_keys = [k for k, v in self.levelup_notified.items() if now - v > 300]
+            for k in old_keys:
+                del self.levelup_notified[k]
         
         self.save_data()
 
