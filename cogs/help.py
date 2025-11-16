@@ -143,9 +143,8 @@ class HelpCog(commands.Cog):
         
         # Comandos Administrativos
         admin_commands = [
-            "• `/setup_tickets` - Configura o painel de tickets",
-            "• `/fecharticket` - Fecha o ticket actual",
-            "• `/ticket_stats` - Ver estatísticas dos tickets",
+            "• `/setup_tickets` - Configura o painel de tickets com categorias",
+            "• `/rename <novo_nome>` - Renomeia um ticket (apenas staff)",
             "• `/eco_add <utilizador> <quantia>` - Adiciona EPA Coins",
             "• `/eco_remove <utilizador> <quantia>` - Remove EPA Coins",
             "• `/eco_reset <utilizador>` - Reset económico completo",
@@ -173,7 +172,7 @@ class HelpCog(commands.Cog):
                   "🔹 **Jogos:** Quiz, Forca, Blackjack, Apostas PvP e muito mais!\n"
                   "🔹 **Social:** Sistema de níveis, XP e reputação automático\n"
                   "🔹 **Música:** Playlists personalizadas e votação para skip\n"
-                  "🔹 **Tickets:** Sistema com 5 categorias\n"
+                  "🔹 **Tickets:** 5 categorias, 1 ticket/user, formato 🎫┃user-0001\n"
                   "🔹 **Moderação:** Sistema completo com logs e avisos\n"
                   "🔹 **Monitorização:** Status, latência e estatísticas em tempo real\n"
                   "🔹 **Backup:** Sistema automático de backup (24h)\n"

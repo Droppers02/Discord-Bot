@@ -4,6 +4,33 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 ---
 
+## [2.2.0] - 2025-11-16
+
+### 🎫 Sistema de Tickets Profissional
+
+- **Refatoração Completa** - Sistema de tickets totalmente reconstruído do zero
+- **Painel com Categorias** - Dropdown com 5 categorias (Suporte Técnico, Dúvidas, Reports, Sugestões, Outros)
+- **Formato Melhorado** - Tickets agora seguem formato `🎫┃username-0001` com ID sequencial
+- **Limite de Tickets** - Utilizadores limitados a 1 ticket aberto por vez
+- **Comando /rename** - Staff pode renomear tickets facilmente
+- **Embeds Personalizados** - Cada categoria tem embed único com dicas específicas
+- **Otimização** - Sistema ultrarrápido sem timeouts, usando defer() e criação assíncrona
+
+### 🔧 Melhorias Técnicas
+
+- **Configuração via .env** - `TICKET_CATEGORY_ID` movido para variáveis de ambiente
+- **Sistema de IDs** - Contador sequencial por servidor para tickets organizados
+- **Validação** - Verificação automática de tickets duplicados por utilizador
+- **Logs Detalhados** - Registo completo de criação, renomeação e fecho de tickets
+
+### 🐛 Correções
+
+- Corrigido import do config nos tickets
+- Removido cache Python que causava erros
+- Otimizada criação de canais (sem overwrites iniciais)
+
+---
+
 ## [2.1.0] - 2025-11-16
 
 ### 🚀 Lançamento Público

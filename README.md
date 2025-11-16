@@ -33,7 +33,7 @@ Bot Discord completo com sistema de economia, jogos, música, moderação, ticke
 - **🎲 Jogos** - Jogos interativos (blackjack, slots, crash, coinflip, etc.)
 - **🎵 Música** - Player de música com fila e controles
 - **⭐ Social** - Sistema de XP, níveis, reputação e leaderboards
-- **🎫 Tickets** - Sistema de suporte com transcrições
+- **🎫 Tickets** - Sistema profissional de suporte com categorias e gestão
 - **🛡️ Moderação** - Ferramentas completas (kick, ban, warn, timeout, etc.)
 - **📊 Monitoramento** - Status do bot, servidor e utilizadores
 - **🔧 Utilidades** - Ferramentas úteis para o servidor
@@ -317,10 +317,17 @@ https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=8&scope
 ### 🎫 Tickets
 
 ```
-/setup_tickets           - [ADMIN] Configurar painel
-/fecharticket            - Fechar ticket atual
-/ticket_stats            - [ADMIN] Ver estatísticas
+/setup_tickets           - [ADMIN] Configurar painel com categorias
+/rename <novo_nome>      - [STAFF] Renomear ticket atual
 ```
+
+**Funcionalidades:**
+
+- 5 categorias: Suporte Técnico, Dúvidas, Reports, Sugestões, Outros
+- Limite de 1 ticket por utilizador
+- Formato: 🎫┃username-0001 (ID sequencial)
+- Botão para fechar tickets
+- Sistema de permissões automático
 
 ### 🛡️ Moderação
 
