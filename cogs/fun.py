@@ -211,7 +211,7 @@ class FunCog(commands.Cog):
             )
             embed.add_field(name="Compatibilidade", value=f"{percentagem}%", inline=True)
             embed.add_field(name="Estado", value=mensagem, inline=True)
-            embed.set_footer(text=f"🎭 Ship personalizado por {interaction.user.name}")
+            embed.set_footer(text=f"🎭 Pedido por {interaction.user.name}")
             
             if ship_image:
                 file = discord.File(ship_image, filename="ship.png")
@@ -229,7 +229,7 @@ class FunCog(commands.Cog):
             )
             embed.add_field(name="Compatibilidade", value=f"{percentagem}%", inline=True)
             embed.add_field(name="Estado", value=mensagem, inline=True)
-            embed.set_footer(text=f"🎭 Ship personalizado por {interaction.user.name}")
+            embed.set_footer(text=f"🎭 Pedido por {interaction.user.name}")
             
             await interaction.followup.send(embed=embed)
 
