@@ -89,8 +89,8 @@ class PollView(discord.ui.View):
         return embed
 
 
-class AutoRoleView(discord.ui.View):
-    """View permanente para auto-roles"""
+class GamesRoleView(discord.ui.View):
+    """View para roles de jogos"""
     
     def __init__(self):
         super().__init__(timeout=None)
@@ -225,20 +225,51 @@ class AutoRoleView(discord.ui.View):
     async def roblox(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 1155146697350074408)
     
+    async def toggle_role(self, interaction: discord.Interaction, role_id: int):
+        """Toggle role do membro"""
+        role = interaction.guild.get_role(role_id)
+        
+        if not role:
+            await interaction.response.send_message(
+                "❌ Role não encontrada!",
+                ephemeral=True
+            )
+            return
+        
+        member = interaction.user
+        
+        if role in member.roles:
+            await member.remove_roles(role)
+            await interaction.response.send_message(
+                f"➖ Role **{role.name}** removida!",
+                ephemeral=True
+            )
+        else:
+            await member.add_roles(role)
+            await interaction.response.send_message(
+                f"➕ Role **{role.name}** adicionada!",
+                ephemeral=True
+            )
+
+
+class PlatformRoleView(discord.ui.View):
+    """View para roles de plataformas"""
+    
+    def __init__(self):
+        super().__init__(timeout=None)
+    
     @discord.ui.button(
         label="🎮 PlayStation",
-        style=discord.ButtonStyle.primary,
-        custom_id="role_ps",
-        row=3
+        style=discord.ButtonStyle.secondary,
+        custom_id="role_ps"
     )
     async def ps(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 869999110181249064)
     
     @discord.ui.button(
         label="🎮 Xbox",
-        style=discord.ButtonStyle.success,
-        custom_id="role_xbox",
-        row=3
+        style=discord.ButtonStyle.secondary,
+        custom_id="role_xbox"
     )
     async def xbox(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 869999804556664862)
@@ -246,8 +277,7 @@ class AutoRoleView(discord.ui.View):
     @discord.ui.button(
         label="💻 PC",
         style=discord.ButtonStyle.secondary,
-        custom_id="role_pc",
-        row=3
+        custom_id="role_pc"
     )
     async def pc(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 869999923452604476)
@@ -255,35 +285,64 @@ class AutoRoleView(discord.ui.View):
     @discord.ui.button(
         label="📱 Mobile",
         style=discord.ButtonStyle.secondary,
-        custom_id="role_mobile",
-        row=3
+        custom_id="role_mobile"
     )
     async def mobile(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 869999970894368818)
     
+    async def toggle_role(self, interaction: discord.Interaction, role_id: int):
+        """Toggle role do membro"""
+        role = interaction.guild.get_role(role_id)
+        
+        if not role:
+            await interaction.response.send_message(
+                "❌ Role não encontrada!",
+                ephemeral=True
+            )
+            return
+        
+        member = interaction.user
+        
+        if role in member.roles:
+            await member.remove_roles(role)
+            await interaction.response.send_message(
+                f"➖ Role **{role.name}** removida!",
+                ephemeral=True
+            )
+        else:
+            await member.add_roles(role)
+            await interaction.response.send_message(
+                f"➕ Role **{role.name}** adicionada!",
+                ephemeral=True
+            )
+
+
+class DMPreferenceRoleView(discord.ui.View):
+    """View para preferências de DM"""
+    
+    def __init__(self):
+        super().__init__(timeout=None)
+    
     @discord.ui.button(
         label="✅ Podem enviar DM",
-        style=discord.ButtonStyle.success,
-        custom_id="role_can_dm",
-        row=4
+        style=discord.ButtonStyle.secondary,
+        custom_id="role_can_dm"
     )
     async def can_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 870000429788971009)
     
     @discord.ui.button(
         label="📩 Perguntar para DM",
-        style=discord.ButtonStyle.primary,
-        custom_id="role_ask_dm",
-        row=4
+        style=discord.ButtonStyle.secondary,
+        custom_id="role_ask_dm"
     )
     async def ask_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 870000027962048632)
     
     @discord.ui.button(
         label="❌ Não enviar DM",
-        style=discord.ButtonStyle.danger,
-        custom_id="role_no_dm",
-        row=4
+        style=discord.ButtonStyle.secondary,
+        custom_id="role_no_dm"
     )
     async def no_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.toggle_role(interaction, 870000122510049311)
@@ -758,40 +817,66 @@ class UtilitiesAdvanced(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     async def setup_autoroles(self, interaction: discord.Interaction):
         """Configurar painel de auto-roles"""
-        embed = discord.Embed(
-            title="🎮 Roles Automáticas - EPA",
-            description="**Clica nos botões abaixo para pegar nas tuas roles!**\n\n"
+        
+        # Painel 1: Jogos
+        embed_games = discord.Embed(
+            title="🎮 Roles de Jogos - EPA",
+            description="**Clica nos botões abaixo para pegar nas roles dos jogos que jogas!**\n\n"
+                       "Isto permite encontrares outras pessoas para jogar contigo.\n\n"
                        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                       "**🎮 Jogos:**\n"
-                       "Seleciona os jogos que jogas para encontrares pessoas para jogar!\n\n"
-                       "**💻 Plataformas:**\n"
-                       "Indica em que plataformas jogas.\n\n"
-                       "**💬 Mensagens Privadas:**\n"
-                       "Define as tuas preferências de DM.",
+                       "**ℹ️ Como Funciona:**\n"
+                       "• Clica num botão para **pegar** a role\n"
+                       "• Clica novamente para **remover** a role\n"
+                       "• Podes ter quantas roles quiseres!",
             color=discord.Color.blue()
         )
-        
-        embed.add_field(
-            name="ℹ️ Como Funciona",
-            value="• Clica num botão para **pegar** a role\n"
-                  "• Clica novamente para **remover** a role\n"
-                  "• Podes ter quantas roles quiseres!",
-            inline=False
-        )
-        
-        embed.set_footer(text="EPA BOT • Sistema de Roles")
-        
+        embed_games.set_footer(text="EPA BOT • Sistema de Roles - Jogos")
         if interaction.guild.icon:
-            embed.set_thumbnail(url=interaction.guild.icon.url)
+            embed_games.set_thumbnail(url=interaction.guild.icon.url)
+        
+        # Painel 2: Plataformas
+        embed_platforms = discord.Embed(
+            title="💻 Roles de Plataformas - EPA",
+            description="**Indica em que plataformas jogas!**\n\n"
+                       "Isto ajuda a encontrar pessoas na mesma plataforma.\n\n"
+                       "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                       "**ℹ️ Como Funciona:**\n"
+                       "• Clica num botão para **pegar** a role\n"
+                       "• Clica novamente para **remover** a role\n"
+                       "• Podes ter múltiplas plataformas!",
+            color=discord.Color.green()
+        )
+        embed_platforms.set_footer(text="EPA BOT • Sistema de Roles - Plataformas")
+        if interaction.guild.icon:
+            embed_platforms.set_thumbnail(url=interaction.guild.icon.url)
+        
+        # Painel 3: Preferências DM
+        embed_dm = discord.Embed(
+            title="💬 Preferências de DM - EPA",
+            description="**Define as tuas preferências de mensagens privadas!**\n\n"
+                       "Isto ajuda outros membros a saberem se podem enviar-te DM.\n\n"
+                       "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                       "**ℹ️ Escolhe UMA opção:**\n"
+                       "• **✅ Podem enviar DM** - Aceitas DMs de qualquer membro\n"
+                       "• **📩 Perguntar para DM** - Pede primeiro antes de enviar\n"
+                       "• **❌ Não enviar DM** - Não aceitas DMs",
+            color=discord.Color.orange()
+        )
+        embed_dm.set_footer(text="EPA BOT • Sistema de Roles - DM")
+        if interaction.guild.icon:
+            embed_dm.set_thumbnail(url=interaction.guild.icon.url)
         
         await interaction.response.send_message(
-            "✅ Painel configurado!",
+            "✅ 3 painéis configurados! (Jogos, Plataformas, DM)",
             ephemeral=True
         )
         
-        await interaction.channel.send(embed=embed, view=AutoRoleView())
+        # Enviar os 3 painéis
+        await interaction.channel.send(embed=embed_games, view=GamesRoleView())
+        await interaction.channel.send(embed=embed_platforms, view=PlatformRoleView())
+        await interaction.channel.send(embed=embed_dm, view=DMPreferenceRoleView())
         
-        bot_logger.info(f"Painel de auto-roles criado por {interaction.user}")
+        bot_logger.info(f"3 painéis de auto-roles criados por {interaction.user}")
     
     @app_commands.command(
         name="setup_verificacao",
