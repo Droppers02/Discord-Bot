@@ -413,6 +413,11 @@ class MathChallengeModal(discord.ui.Modal):
             return
         
         # Fase 1 completa! Enviar código por DM
+        # Primeiro mostrar o modal do código (responder à interação)
+        code_modal = CodeVerificationModal(self.verification_code, self.guild_id)
+        await interaction.response.send_modal(code_modal)
+        
+        # DEPOIS enviar a DM (não usa interaction.response)
         try:
             dm_embed = discord.Embed(
                 title="📧 Código de Verificação - Fase 2/2",
@@ -420,24 +425,15 @@ class MathChallengeModal(discord.ui.Modal):
                            f"Aqui está o teu código de verificação:\n\n"
                            f"```\n{self.verification_code}\n```\n\n"
                            f"Volta ao servidor e introduz este código quando pedido.",
-                color=discord.Color.blue(),
-                timestamp=datetime.now()
+                color=discord.Color.blue()
             )
             dm_embed.set_footer(text="EPA BOT • Sistema de Verificação 2FA")
             
-            # Primeiro mostrar o modal do código (responder à interação)
-            code_modal = CodeVerificationModal(self.verification_code, self.guild_id)
-            await interaction.response.send_modal(code_modal)
-            
-            # DEPOIS enviar a DM (não usa interaction.response)
             await interaction.user.send(embed=dm_embed)
             
             bot_logger.info(f"{interaction.user} passou na fase 1 (matemática) - código enviado por DM")
             
         except discord.Forbidden:
-            # Se não conseguir enviar DM, avisar o utilizador
-            # Mas como já mostramos o modal, não podemos usar interaction.response
-            # Vamos enviar uma mensagem de followup
             bot_logger.warning(f"{interaction.user} tem DMs desativadas - código não enviado")
         except Exception as e:
             bot_logger.error(f"Erro ao enviar DM para {interaction.user}: {e}")
