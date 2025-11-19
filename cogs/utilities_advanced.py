@@ -92,8 +92,9 @@ class PollView(discord.ui.View):
 class GamesRoleView(discord.ui.View):
     """View para roles de jogos"""
     
-    def __init__(self):
+    def __init__(self, role_ids: dict):
         super().__init__(timeout=None)
+        self.role_ids = role_ids
     
     @discord.ui.button(
         label="🎮 Gacha",
@@ -101,7 +102,7 @@ class GamesRoleView(discord.ui.View):
         custom_id="role_gacha"
     )
     async def gacha(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 983713090795347988)
+        await self.toggle_role(interaction, self.role_ids.get("gacha", 0))
     
     @discord.ui.button(
         label="🔫 CSGO",
@@ -109,7 +110,7 @@ class GamesRoleView(discord.ui.View):
         custom_id="role_csgo"
     )
     async def csgo(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984076131277893634)
+        await self.toggle_role(interaction, self.role_ids.get("csgo", 0))
     
     @discord.ui.button(
         label="🎯 Valorant",
@@ -117,7 +118,7 @@ class GamesRoleView(discord.ui.View):
         custom_id="role_valorant"
     )
     async def valorant(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984075603655397416)
+        await self.toggle_role(interaction, self.role_ids.get("valorant", 0))
     
     @discord.ui.button(
         label="🎮 Overwatch",
@@ -125,7 +126,7 @@ class GamesRoleView(discord.ui.View):
         custom_id="role_overwatch"
     )
     async def overwatch(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984079929576673290)
+        await self.toggle_role(interaction, self.role_ids.get("overwatch", 0))
     
     @discord.ui.button(
         label="⚔️ League of Legends",
@@ -133,7 +134,7 @@ class GamesRoleView(discord.ui.View):
         custom_id="role_lol"
     )
     async def lol(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984079118155022346)
+        await self.toggle_role(interaction, self.role_ids.get("lol", 0))
     
     @discord.ui.button(
         label="🎌 Anime",
@@ -142,7 +143,7 @@ class GamesRoleView(discord.ui.View):
         row=1
     )
     async def anime(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 1085243051800285255)
+        await self.toggle_role(interaction, self.role_ids.get("anime", 0))
     
     @discord.ui.button(
         label="🦖 Ark",
@@ -151,7 +152,7 @@ class GamesRoleView(discord.ui.View):
         row=1
     )
     async def ark(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984077973621719050)
+        await self.toggle_role(interaction, self.role_ids.get("ark", 0))
     
     @discord.ui.button(
         label="🃏 Runeterra",
@@ -160,7 +161,7 @@ class GamesRoleView(discord.ui.View):
         row=1
     )
     async def runeterra(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984079324514750494)
+        await self.toggle_role(interaction, self.role_ids.get("runeterra", 0))
     
     @discord.ui.button(
         label="🚗 GTA V RP",
@@ -169,7 +170,7 @@ class GamesRoleView(discord.ui.View):
         row=1
     )
     async def gta(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984078259794874408)
+        await self.toggle_role(interaction, self.role_ids.get("gta", 0))
     
     @discord.ui.button(
         label="🚀 Rocket League",
@@ -178,7 +179,7 @@ class GamesRoleView(discord.ui.View):
         row=1
     )
     async def rocket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984078450891558923)
+        await self.toggle_role(interaction, self.role_ids.get("rocket_league", 0))
     
     @discord.ui.button(
         label="🦸 Marvel Rivals",
@@ -187,7 +188,7 @@ class GamesRoleView(discord.ui.View):
         row=2
     )
     async def marvel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 1318275263263412294)
+        await self.toggle_role(interaction, self.role_ids.get("marvel_rivals", 0))
     
     @discord.ui.button(
         label="⛏️ Minecraft",
@@ -196,7 +197,7 @@ class GamesRoleView(discord.ui.View):
         row=2
     )
     async def minecraft(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984077127349571594)
+        await self.toggle_role(interaction, self.role_ids.get("minecraft", 0))
     
     @discord.ui.button(
         label="🔪 Dead by Daylight",
@@ -205,7 +206,7 @@ class GamesRoleView(discord.ui.View):
         row=2
     )
     async def dbd(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984080200109273148)
+        await self.toggle_role(interaction, self.role_ids.get("dbd", 0))
     
     @discord.ui.button(
         label="🎮 Fortnite",
@@ -214,7 +215,7 @@ class GamesRoleView(discord.ui.View):
         row=2
     )
     async def fortnite(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 984076759211343872)
+        await self.toggle_role(interaction, self.role_ids.get("fortnite", 0))
     
     @discord.ui.button(
         label="🎨 Roblox",
@@ -223,7 +224,7 @@ class GamesRoleView(discord.ui.View):
         row=2
     )
     async def roblox(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 1155146697350074408)
+        await self.toggle_role(interaction, self.role_ids.get("roblox", 0))
     
     async def toggle_role(self, interaction: discord.Interaction, role_id: int):
         """Toggle role do membro"""
@@ -255,8 +256,9 @@ class GamesRoleView(discord.ui.View):
 class PlatformRoleView(discord.ui.View):
     """View para roles de plataformas"""
     
-    def __init__(self):
+    def __init__(self, role_ids: dict):
         super().__init__(timeout=None)
+        self.role_ids = role_ids
     
     @discord.ui.button(
         label="🎮 PlayStation",
@@ -264,7 +266,7 @@ class PlatformRoleView(discord.ui.View):
         custom_id="role_ps"
     )
     async def ps(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 869999110181249064)
+        await self.toggle_role(interaction, self.role_ids.get("playstation", 0))
     
     @discord.ui.button(
         label="🎮 Xbox",
@@ -272,7 +274,7 @@ class PlatformRoleView(discord.ui.View):
         custom_id="role_xbox"
     )
     async def xbox(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 869999804556664862)
+        await self.toggle_role(interaction, self.role_ids.get("xbox", 0))
     
     @discord.ui.button(
         label="💻 PC",
@@ -280,7 +282,7 @@ class PlatformRoleView(discord.ui.View):
         custom_id="role_pc"
     )
     async def pc(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 869999923452604476)
+        await self.toggle_role(interaction, self.role_ids.get("pc", 0))
     
     @discord.ui.button(
         label="📱 Mobile",
@@ -288,7 +290,7 @@ class PlatformRoleView(discord.ui.View):
         custom_id="role_mobile"
     )
     async def mobile(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 869999970894368818)
+        await self.toggle_role(interaction, self.role_ids.get("mobile", 0))
     
     async def toggle_role(self, interaction: discord.Interaction, role_id: int):
         """Toggle role do membro"""
@@ -320,8 +322,9 @@ class PlatformRoleView(discord.ui.View):
 class DMPreferenceRoleView(discord.ui.View):
     """View para preferências de DM"""
     
-    def __init__(self):
+    def __init__(self, role_ids: dict):
         super().__init__(timeout=None)
+        self.role_ids = role_ids
     
     @discord.ui.button(
         label="✅ Podem enviar DM",
@@ -329,7 +332,7 @@ class DMPreferenceRoleView(discord.ui.View):
         custom_id="role_can_dm"
     )
     async def can_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 870000429788971009)
+        await self.toggle_role(interaction, self.role_ids.get("can_dm", 0))
     
     @discord.ui.button(
         label="📩 Perguntar para DM",
@@ -337,7 +340,7 @@ class DMPreferenceRoleView(discord.ui.View):
         custom_id="role_ask_dm"
     )
     async def ask_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 870000027962048632)
+        await self.toggle_role(interaction, self.role_ids.get("ask_dm", 0))
     
     @discord.ui.button(
         label="❌ Não enviar DM",
@@ -345,7 +348,7 @@ class DMPreferenceRoleView(discord.ui.View):
         custom_id="role_no_dm"
     )
     async def no_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.toggle_role(interaction, 870000122510049311)
+        await self.toggle_role(interaction, self.role_ids.get("no_dm", 0))
     
     async def toggle_role(self, interaction: discord.Interaction, role_id: int):
         """Toggle role do membro"""
@@ -467,7 +470,21 @@ class CodeVerificationModal(discord.ui.Modal):
             return
         
         # Verificação completa! Dar role
-        verified_role_id = 870001773648171178
+        # Carregar config para obter verified_role_id
+        try:
+            with open("config/utilities_config.json", 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            verified_role_id = config.get("verification", {}).get("verified_role_id", 0)
+        except:
+            verified_role_id = 0
+        
+        if verified_role_id == 0:
+            await interaction.response.send_message(
+                "❌ Sistema de verificação não configurado! Contacta um administrador.",
+                ephemeral=True
+            )
+            return
+        
         guild = interaction.client.get_guild(self.guild_id)
         
         if not guild:
@@ -492,6 +509,10 @@ class CodeVerificationModal(discord.ui.Modal):
             await member.add_roles(verified_role)
             bot_logger.info(f"✅ [2FA] {member} recebeu role de verificado com sucesso")
             
+            # Obter canal de autoroles da config
+            autoroles_channel_id = config.get("channels", {}).get("autoroles_channel", 0)
+            autoroles_mention = f"<#{autoroles_channel_id}>" if autoroles_channel_id else "o canal de roles"
+            
             success_embed = discord.Embed(
                 title="✅ Verificação Concluída!",
                 description=f"**Parabéns, {member.mention}!**\n\n"
@@ -499,7 +520,7 @@ class CodeVerificationModal(discord.ui.Modal):
                            f"✅ Tens agora acesso a todos os canais\n\n"
                            f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
                            f"**Próximos passos:**\n"
-                           f"• Pega nas tuas roles em <#869989783856877618>\n"
+                           f"• Pega nas tuas roles em {autoroles_mention}\n"
                            f"• Lê as regras do servidor\n"
                            f"• Diverte-te!",
                 color=discord.Color.green(),
@@ -542,7 +563,21 @@ class VerificationView(discord.ui.View):
     )
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Iniciar processo de verificação 2FA"""
-        verified_role_id = 870001773648171178
+        # Carregar config para obter verified_role_id
+        try:
+            with open("config/utilities_config.json", 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            verified_role_id = config.get("verification", {}).get("verified_role_id", 0)
+        except:
+            verified_role_id = 0
+        
+        if verified_role_id == 0:
+            await interaction.response.send_message(
+                "❌ Sistema de verificação não configurado! Configure utilities_config.json",
+                ephemeral=True
+            )
+            return
+        
         verified_role = interaction.guild.get_role(verified_role_id)
         
         if not verified_role:
@@ -643,6 +678,10 @@ class UtilitiesAdvanced(commands.Cog):
         self.reminders_file = "data/reminders.json"
         self.polls_file = "data/polls.json"
         self.scheduled_announcements_file = "data/scheduled_announcements.json"
+        self.config_file = "config/utilities_config.json"
+        
+        # Carregar configuração
+        self.load_config()
         
         self.ensure_data_files()
         self.load_data()
@@ -650,6 +689,38 @@ class UtilitiesAdvanced(commands.Cog):
         # Iniciar tasks
         self.check_reminders.start()
         self.check_announcements.start()
+    
+    def load_config(self):
+        """Carregar configuração de IDs"""
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                self.config = json.load(f)
+            bot_logger.info("✅ Configuração de utilidades carregada")
+        except FileNotFoundError:
+            bot_logger.error(f"❌ Arquivo {self.config_file} não encontrado! Copie utilities_config.example.json para utilities_config.json")
+            # Configuração padrão vazia
+            self.config = {
+                "verification": {"verified_role_id": 0},
+                "autoroles": {
+                    "games": {},
+                    "platforms": {},
+                    "dm_preferences": {}
+                },
+                "channels": {},
+                "messages": {}
+            }
+        except json.JSONDecodeError as e:
+            bot_logger.error(f"❌ Erro ao ler {self.config_file}: {e}")
+            self.config = {
+                "verification": {"verified_role_id": 0},
+                "autoroles": {
+                    "games": {},
+                    "platforms": {},
+                    "dm_preferences": {}
+                },
+                "channels": {},
+                "messages": {}
+            }
     
     def ensure_data_files(self):
         """Garantir que os ficheiros de dados existem"""
@@ -688,9 +759,14 @@ class UtilitiesAdvanced(commands.Cog):
     
     async def cog_load(self):
         """Carregar views persistentes"""
-        self.bot.add_view(GamesRoleView())
-        self.bot.add_view(PlatformRoleView())
-        self.bot.add_view(DMPreferenceRoleView())
+        # Carregar views com IDs da configuração
+        games_ids = self.config.get("autoroles", {}).get("games", {})
+        platform_ids = self.config.get("autoroles", {}).get("platforms", {})
+        dm_ids = self.config.get("autoroles", {}).get("dm_preferences", {})
+        
+        self.bot.add_view(GamesRoleView(games_ids))
+        self.bot.add_view(PlatformRoleView(platform_ids))
+        self.bot.add_view(DMPreferenceRoleView(dm_ids))
         self.bot.add_view(VerificationView())
         bot_logger.info("Sistema avançado de utilidades carregado")
     
@@ -1066,10 +1142,14 @@ class UtilitiesAdvanced(commands.Cog):
             ephemeral=True
         )
         
-        # Enviar os 3 painéis
-        await interaction.channel.send(embed=embed_games, view=GamesRoleView())
-        await interaction.channel.send(embed=embed_platforms, view=PlatformRoleView())
-        await interaction.channel.send(embed=embed_dm, view=DMPreferenceRoleView())
+        # Enviar os 3 painéis com IDs da configuração
+        games_ids = self.config.get("autoroles", {}).get("games", {})
+        platform_ids = self.config.get("autoroles", {}).get("platforms", {})
+        dm_ids = self.config.get("autoroles", {}).get("dm_preferences", {})
+        
+        await interaction.channel.send(embed=embed_games, view=GamesRoleView(games_ids))
+        await interaction.channel.send(embed=embed_platforms, view=PlatformRoleView(platform_ids))
+        await interaction.channel.send(embed=embed_dm, view=DMPreferenceRoleView(dm_ids))
         
         bot_logger.info(f"3 painéis de auto-roles criados por {interaction.user}")
     
@@ -1080,6 +1160,10 @@ class UtilitiesAdvanced(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     async def setup_verification(self, interaction: discord.Interaction):
         """Configurar sistema de verificação 2FA"""
+        # Obter canal de autoroles da config
+        autoroles_channel_id = self.config.get("channels", {}).get("autoroles_channel", 0)
+        autoroles_mention = f"<#{autoroles_channel_id}>" if autoroles_channel_id else "o canal de roles"
+        
         embed = discord.Embed(
             title="🔐 Verificação 2FA - EPA",
             description="**Bem-vindo ao servidor EPA!**\n\n"
@@ -1099,7 +1183,7 @@ class UtilitiesAdvanced(commands.Cog):
                        "• O processo é rápido e seguro\n\n"
                        "**Depois de verificado:**\n"
                        "• Acesso total ao servidor\n"
-                       "• Pega nas tuas roles em <#869989783856877618>\n"
+                       f"• Pega nas tuas roles em {autoroles_mention}\n"
                        "• Lê as regras e diverte-te!",
             color=discord.Color.green()
         )
