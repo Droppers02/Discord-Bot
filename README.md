@@ -199,11 +199,13 @@ O bot está configurado para deploy na **Discloud** com o ficheiro `discloud.con
 4. Inicia o bot
 
 **⚠️ Limitações do Plano Grátis:**
+
 - 100MB RAM (pode ser justo para muitos utilizadores)
 - Comandos de música podem causar problemas de memória
 - Considera desativar o cog `music.py` se necessário
 
 **Configuração:**
+
 ```
 RAM: 100MB
 APT: ffmpeg, python3-dev, git
@@ -216,7 +218,6 @@ AutoRestart: Ativado
 - **Railway.app:** Plano grátis com mais recursos
 - **Heroku:** Descontinuado para planos grátis
 - **Render.com:** Alternativa gratuita
-
 
 ---
 
