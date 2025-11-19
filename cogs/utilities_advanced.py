@@ -495,7 +495,9 @@ class UtilitiesAdvanced(commands.Cog):
     
     async def cog_load(self):
         """Carregar views persistentes"""
-        self.bot.add_view(AutoRoleView())
+        self.bot.add_view(GamesRoleView())
+        self.bot.add_view(PlatformRoleView())
+        self.bot.add_view(DMPreferenceRoleView())
         self.bot.add_view(VerificationView())
         bot_logger.info("Sistema avançado de utilidades carregado")
     
