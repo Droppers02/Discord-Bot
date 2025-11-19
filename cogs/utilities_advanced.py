@@ -693,18 +693,38 @@ class UtilitiesAdvanced(commands.Cog):
                 self.config = json.load(f)
             bot_logger.info("✅ Configuração de utilidades carregada")
         except FileNotFoundError:
-            bot_logger.error(f"❌ Arquivo {self.config_file} não encontrado! Copie utilities_config.example.json para utilities_config.json")
-            # Configuração padrão vazia
-            self.config = {
-                "verification": {"verified_role_id": 0},
-                "autoroles": {
-                    "games": {},
-                    "platforms": {},
-                    "dm_preferences": {}
-                },
-                "channels": {},
-                "messages": {}
-            }
+            # Tentar copiar do exemplo se não existir
+            try:
+                example_file = "config/utilities_config.example.json"
+                if os.path.exists(example_file):
+                    bot_logger.warning(f"⚠️ {self.config_file} não encontrado. Copiando do exemplo...")
+                    with open(example_file, 'r', encoding='utf-8') as src:
+                        config_data = json.load(src)
+                    
+                    # Criar diretório se não existir
+                    os.makedirs("config", exist_ok=True)
+                    
+                    # Salvar cópia
+                    with open(self.config_file, 'w', encoding='utf-8') as dest:
+                        json.dump(config_data, dest, indent=2, ensure_ascii=False)
+                    
+                    self.config = config_data
+                    bot_logger.info(f"✅ Criado {self.config_file} a partir do exemplo. Configure os IDs!")
+                else:
+                    raise FileNotFoundError("Exemplo não encontrado")
+            except Exception as e:
+                bot_logger.error(f"❌ Não foi possível criar config: {e}")
+                # Configuração padrão vazia
+                self.config = {
+                    "verification": {"verified_role_id": 0},
+                    "autoroles": {
+                        "games": {},
+                        "platforms": {},
+                        "dm_preferences": {}
+                    },
+                    "channels": {},
+                    "messages": {}
+                }
         except json.JSONDecodeError as e:
             bot_logger.error(f"❌ Erro ao ler {self.config_file}: {e}")
             self.config = {
