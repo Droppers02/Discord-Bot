@@ -54,8 +54,8 @@ class TicTacToeButton(discord.ui.Button):
             )
             embed.set_footer(text="EPA Bot • Jogo do Galo")
             
-            await interaction.message.edit(embed=embed, view=view)
             await interaction.response.defer()
+            await interaction.message.edit(embed=embed, view=view)
             return
         
         # Verificar empate
@@ -71,8 +71,8 @@ class TicTacToeButton(discord.ui.Button):
             )
             embed.set_footer(text="EPA Bot • Jogo do Galo")
             
-            await interaction.message.edit(embed=embed, view=view)
             await interaction.response.defer()
+            await interaction.message.edit(embed=embed, view=view)
             return
         
         # Próximo jogador
@@ -96,8 +96,8 @@ class TicTacToeButton(discord.ui.Button):
                 )
                 embed.set_footer(text="EPA Bot • Jogo do Galo")
                 
-                await interaction.message.edit(embed=embed, view=view)
                 await interaction.response.defer()
+                await interaction.message.edit(embed=embed, view=view)
                 return
             
             # Verificar empate após jogada do bot
@@ -113,8 +113,8 @@ class TicTacToeButton(discord.ui.Button):
                 )
                 embed.set_footer(text="EPA Bot • Jogo do Galo")
                 
-                await interaction.message.edit(embed=embed, view=view)
                 await interaction.response.defer()
+                await interaction.message.edit(embed=embed, view=view)
                 return
             
             # Voltar para o jogador humano
@@ -127,8 +127,8 @@ class TicTacToeButton(discord.ui.Button):
         )
         embed.set_footer(text="EPA Bot • Jogo do Galo")
         
-        await interaction.message.edit(embed=embed, view=view)
         await interaction.response.defer()
+        await interaction.message.edit(embed=embed, view=view)
 
 
 class TicTacToeView(discord.ui.View):
@@ -304,8 +304,8 @@ class Connect4Button(discord.ui.Button):
             embed.add_field(name="Tabuleiro Final:", value=board_display, inline=False)
             embed.set_footer(text="EPA Bot • 4 em Linha")
             
-            await interaction.message.edit(embed=embed, view=view)
             await interaction.response.defer()
+            await interaction.message.edit(embed=embed, view=view)
             return
         
         # Verificar empate
@@ -322,8 +322,8 @@ class Connect4Button(discord.ui.Button):
             embed.add_field(name="Tabuleiro Final:", value=board_display, inline=False)
             embed.set_footer(text="EPA Bot • 4 em Linha")
             
-            await interaction.message.edit(embed=embed, view=view)
             await interaction.response.defer()
+            await interaction.message.edit(embed=embed, view=view)
             return
         
         # Próximo jogador
@@ -342,8 +342,8 @@ class Connect4Button(discord.ui.Button):
             embed.add_field(name="Tabuleiro:", value=board_display, inline=False)
             embed.set_footer(text="EPA Bot • 4 em Linha")
             
-            await interaction.message.edit(embed=embed, view=view)
             await interaction.response.defer()
+            await interaction.message.edit(embed=embed, view=view)
 
 
 class Connect4View(discord.ui.View):
@@ -522,8 +522,8 @@ class Connect4View(discord.ui.View):
             embed.add_field(name="Tabuleiro Final:", value=board_display, inline=False)
             embed.set_footer(text="EPA Bot • 4 em Linha")
             
-            await interaction.message.edit(embed=embed, view=self)
             await interaction.response.defer()
+            await interaction.message.edit(embed=embed, view=self)
             return
         
         # Voltar para o jogador humano
@@ -538,8 +538,8 @@ class Connect4View(discord.ui.View):
         embed.add_field(name="Tabuleiro:", value=board_display, inline=False)
         embed.set_footer(text="EPA Bot • 4 em Linha")
         
-        await interaction.message.edit(embed=embed, view=self)
         await interaction.response.defer()
+        await interaction.message.edit(embed=embed, view=self)
     
     async def on_timeout(self):
         """Executado quando o timeout é atingido"""
