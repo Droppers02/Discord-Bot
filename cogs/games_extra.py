@@ -166,7 +166,6 @@ class GamesExtraCog(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.db = None
         self.active_games = {}  # Jogos ativos
         
         self.quiz_questions = [
@@ -214,10 +213,6 @@ class GamesExtraCog(commands.Cog):
             ("TSUNAMI", "Onda gigante"), ("VAMPIRO", "Criatura da noite"),
             ("DRAGAO", "Criatura mítica"), ("UNICORNIO", "Cavalo com chifre")
         ]
-    
-    async def cog_load(self):
-        """Método chamado quando o cog é carregado"""
-        self.db = await get_database()
 
     @app_commands.command(name="quiz", description="Jogo de perguntas e respostas")
     async def quiz(self, interaction: discord.Interaction):

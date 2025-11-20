@@ -541,11 +541,10 @@ class GamesCog(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.db = None
 
     async def cog_load(self):
         """Método chamado quando o cog é carregado"""
-        self.db = await get_database()
+        pass
 
     @discord.app_commands.command(name="jogodogalo", description="Inicia um jogo do galo")
     @discord.app_commands.describe(oponente="Utilizador para jogar contra (opcional, deixe em branco para jogar contra o bot)")
