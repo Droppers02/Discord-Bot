@@ -555,12 +555,14 @@ class GamesCog(commands.Cog):
         Args:
             oponente: Utilizador para jogar contra (opcional, deixe em branco para jogar contra o bot)
         """
+        await interaction.response.defer()
+        
         if oponente == interaction.user:
-            await interaction.response.send_message("❌ Não podes jogar contra ti próprio!", ephemeral=True)
+            await interaction.followup.send("❌ Não podes jogar contra ti próprio!", ephemeral=True)
             return
         
         if oponente and oponente.bot:
-            await interaction.response.send_message("❌ Não podes jogar contra outros bots!", ephemeral=True)
+            await interaction.followup.send("❌ Não podes jogar contra outros bots!", ephemeral=True)
             return
         
         # Determinar modo de jogo
@@ -583,8 +585,7 @@ class GamesCog(commands.Cog):
         
         embed.set_footer(text="EPA Bot • Jogo do Galo • Timeout: 5 minutos")
         
-        # CORREÇÃO: Responder à interação antes de fazer qualquer outra operação
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.followup.send(embed=embed, view=view)
         
         # Se for single player e o bot começar (opcional)
         # if oponente is None and random.random() < 0.5:
@@ -600,8 +601,10 @@ class GamesCog(commands.Cog):
         Args:
             oponente: Utilizador para jogar contra (opcional, deixe em branco para jogar contra o bot)
         """
+        await interaction.response.defer()
+        
         if oponente == interaction.user:
-            await interaction.response.send_message("❌ Não podes jogar contra ti próprio!", ephemeral=True)
+            await interaction.followup.send("❌ Não podes jogar contra ti próprio!", ephemeral=True)
             return
         
         if oponente and oponente.bot:
@@ -631,7 +634,7 @@ class GamesCog(commands.Cog):
         embed.add_field(name="Tabuleiro:", value=board_display, inline=False)
         embed.set_footer(text="EPA Bot • 4 em Linha • Clica no número da coluna • Timeout: 10 minutos")
         
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.followup.send(embed=embed, view=view)
 
     @discord.app_commands.command(name="coinflip", description="Cara ou coroa")
     @discord.app_commands.describe(escolha="A tua escolha (cara/coroa) - opcional")

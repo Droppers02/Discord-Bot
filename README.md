@@ -499,6 +499,7 @@ O bot possui um sistema social completo com XP, níveis, perfis customizáveis, 
 ```
 
 **Perfis incluem:**
+
 - 📊 Estatísticas (Level, XP, Reputação, Mensagens)
 - 🎨 Customização (Bio, Cor do embed, Banner, Pronomes)
 - 🏅 Badges conquistados
@@ -526,13 +527,15 @@ O bot possui um sistema social completo com XP, níveis, perfis customizáveis, 
 ```
 
 **Badges Automáticos:**
+
 - 🔟 Nível 10
-- 🎖️ Nível 25  
+- 🎖️ Nível 25
 - ⭐ Nível 50
 - 👑 Nível 100
 - 💍 Casamento
 
 **Sistema de XP:**
+
 - 15-25 XP por mensagem (cooldown: 60s)
 - Cálculo: Level = ⌊√(XP/100)⌋ + 1
 - Notificações automáticas de level up

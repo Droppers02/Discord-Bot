@@ -316,10 +316,12 @@ class GamesExtraCog(commands.Cog):
     @app_commands.command(name="forca", description="Jogo da forca melhorado")
     async def forca(self, interaction: discord.Interaction):
         """Jogo da forca com interface de botões"""
+        await interaction.response.defer()
+        
         user_id = interaction.user.id
         
         if user_id in self.active_games:
-            await interaction.response.send_message("❌ Já tens um jogo ativo! Termina-o primeiro.", ephemeral=True)
+            await interaction.followup.send("❌ Já tens um jogo ativo! Termina-o primeiro.", ephemeral=True)
             return
         
         # Escolher palavra com dica
@@ -339,7 +341,7 @@ class GamesExtraCog(commands.Cog):
             "view": view
         }
         
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.followup.send(embed=embed, view=view)
 
     async def _show_forca_status(self, interaction, user_id, first_time=False):
         """Mostrar status do jogo da forca"""
