@@ -1,0 +1,43 @@
+{
+  "_comment": "Configuração do sistema de moderação avançado",
+  
+  "logs": {
+    "channel_id": 0,
+    "_comment_channel": "ID do canal para logs de moderação (0 = desativado)"
+  },
+  
+  "quarantine": {
+    "enabled": false,
+    "role_id": 0,
+    "duration_minutes": 10,
+    "_comment_quarantine": "Sistema de quarentena para novos membros (role temporária)"
+  },
+  
+  "word_filter": {
+    "enabled": false,
+    "words": [],
+    "action": "warn",
+    "_comment_action": "Ação ao detetar palavra proibida: warn, timeout, kick, ban",
+    "_comment_words": "Lista de palavras proibidas (case-insensitive)"
+  },
+  
+  "timeout_presets": {
+    "1m": 60,
+    "5m": 300,
+    "10m": 600,
+    "30m": 1800,
+    "1h": 3600,
+    "6h": 21600,
+    "12h": 43200,
+    "1d": 86400,
+    "3d": 259200,
+    "1w": 604800,
+    "_comment_presets": "Presets de timeout em segundos"
+  },
+  
+  "appeals": {
+    "enabled": false,
+    "channel_id": 0,
+    "_comment_appeals": "Canal para receber pedidos de unban"
+  }
+}
