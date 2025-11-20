@@ -106,21 +106,29 @@ class EPABot(commands.Bot):
             except Exception as e:
                 self.logger.error(f"❌ Erro ao carregar {extension}: {e}")
         
-        # Sincronizar comandos slash APENAS para o servidor específico
+        # Sincronizar comandos slash
         try:
             if self.config.server_id:
                 guild = discord.Object(id=self.config.server_id)
+                
+                # IMPORTANTE: Limpar comandos antigos do servidor e sincronizar novos
+                self.tree.copy_global_to(guild=guild)
                 synced = await self.tree.sync(guild=guild)
+                
                 self.logger.info(f"✅ {len(synced)} comandos sincronizados para o servidor {self.config.server_id}")
                 
                 if len(synced) == 0:
-                    self.logger.warning("⚠️ NENHUM comando foi sincronizado! A tentar sincronização global...")
-                    # Fallback para sincronização global se a do servidor falhar
+                    self.logger.warning("⚠️ NENHUM comando foi sincronizado para o servidor!")
+                    self.logger.warning("⚠️ A sincronizar globalmente (pode demorar até 1h)...")
                     synced_global = await self.tree.sync()
                     self.logger.info(f"✅ {len(synced_global)} comandos sincronizados globalmente")
+                else:
+                    self.logger.info("✅ Comandos disponíveis IMEDIATAMENTE no servidor!")
                     
             else:
-                self.logger.error("❌ server_id não configurado! Os comandos não foram sincronizados.")
+                self.logger.warning("⚠️ SERVER_ID não configurado, a sincronizar globalmente...")
+                synced_global = await self.tree.sync()
+                self.logger.info(f"✅ {len(synced_global)} comandos sincronizados globalmente (demora até 1h)")
                 
             # Log dos comandos carregados
             total_commands = len(self.tree.get_commands())
