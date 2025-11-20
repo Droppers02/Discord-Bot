@@ -27,12 +27,15 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 
 ### Sistema de Economia
 
-- [ ] Loja de roles customizadas com cores
-- [ ] Sistema de trading entre utilizadores
-- [ ] Eventos especiais com bónus de moedas
-- [ ] Cooldowns visuais nos comandos
-- [ ] Sistema de achievements/conquistas
-- [ ] Leilões de itens raros
+- [x] Loja de roles customizadas com cores
+- [x] Sistema de trading entre utilizadores
+- [x] Eventos especiais com bónus de moedas
+- [x] Cooldowns visuais nos comandos (trabalho, crime)
+- [x] Sistema de achievements/conquistas
+- [x] Leilões de itens raros
+- [ ] Inventário visual com itens colecionáveis
+- [ ] Sistema de crafting de itens
+- [ ] Missões diárias automáticas
 
 ### Sistema Social
 

@@ -262,6 +262,136 @@ class Database:
                 )
             """)
             
+            # ===== SISTEMA DE ECONOMIA AVANÇADO =====
+            
+            # Tabela de custom roles compradas
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS custom_roles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
+                    role_id TEXT UNIQUE NOT NULL,
+                    role_name TEXT NOT NULL,
+                    role_color TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TEXT,
+                    UNIQUE(user_id, guild_id)
+                )
+            """)
+            
+            # Tabela de trades entre utilizadores
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS trades (
+                    trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id TEXT NOT NULL,
+                    sender_id TEXT NOT NULL,
+                    receiver_id TEXT NOT NULL,
+                    sender_offer_coins INTEGER DEFAULT 0,
+                    sender_offer_items TEXT,
+                    receiver_offer_coins INTEGER DEFAULT 0,
+                    receiver_offer_items TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    completed_at TEXT
+                )
+            """)
+            
+            # Tabela de achievements/conquistas
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS achievements (
+                    achievement_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    emoji TEXT,
+                    reward_coins INTEGER DEFAULT 0,
+                    reward_badge TEXT,
+                    requirement_type TEXT NOT NULL,
+                    requirement_value INTEGER,
+                    tier TEXT DEFAULT 'bronze',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Tabela de achievements desbloqueados
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS user_achievements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
+                    achievement_id TEXT NOT NULL,
+                    unlocked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    claimed INTEGER DEFAULT 0,
+                    FOREIGN KEY (achievement_id) REFERENCES achievements(achievement_id),
+                    UNIQUE(user_id, guild_id, achievement_id)
+                )
+            """)
+            
+            # Tabela de leilões
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS auctions (
+                    auction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id TEXT NOT NULL,
+                    seller_id TEXT NOT NULL,
+                    item_name TEXT NOT NULL,
+                    item_description TEXT,
+                    item_emoji TEXT,
+                    item_rarity TEXT DEFAULT 'common',
+                    starting_bid INTEGER NOT NULL,
+                    current_bid INTEGER,
+                    current_bidder_id TEXT,
+                    buyout_price INTEGER,
+                    status TEXT DEFAULT 'active',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    ends_at TEXT NOT NULL
+                )
+            """)
+            
+            # Tabela de bids de leilão
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS auction_bids (
+                    bid_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    auction_id INTEGER NOT NULL,
+                    bidder_id TEXT NOT NULL,
+                    bid_amount INTEGER NOT NULL,
+                    bid_time TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (auction_id) REFERENCES auctions(auction_id)
+                )
+            """)
+            
+            # Tabela de eventos especiais ativos
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS active_events (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    event_name TEXT NOT NULL,
+                    multiplier REAL DEFAULT 1.0,
+                    bonus_coins INTEGER DEFAULT 0,
+                    description TEXT,
+                    started_by TEXT,
+                    started_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    ends_at TEXT
+                )
+            """)
+            
+            # Tabela de itens raros no inventário
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS inventory_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
+                    item_id TEXT NOT NULL,
+                    item_name TEXT NOT NULL,
+                    item_type TEXT NOT NULL,
+                    item_rarity TEXT DEFAULT 'common',
+                    item_data TEXT,
+                    quantity INTEGER DEFAULT 1,
+                    tradeable INTEGER DEFAULT 1,
+                    acquired_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, guild_id, item_id)
+                )
+            """)
+            
             # Criar índices para melhor performance
             await db.execute("CREATE INDEX IF NOT EXISTS idx_user_items_user ON user_items(user_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_transactions_from ON transactions(from_user_id)")
@@ -274,6 +404,11 @@ class Database:
             await db.execute("CREATE INDEX IF NOT EXISTS idx_badges_user ON user_badges(user_id, guild_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_history(user_id, guild_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_marriages_users ON marriages(user1_id, user2_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_custom_roles_user ON custom_roles(user_id, guild_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status, guild_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status, guild_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_inventory_user ON inventory_items(user_id, guild_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_events_active ON active_events(guild_id, ends_at)")
             
             await db.commit()
             self.logger.info("✅ Base de dados inicializada com sucesso")
@@ -875,6 +1010,307 @@ class Database:
                         "total_rewards": row[2]
                     }
                 return {"current": 0, "best": 0, "total_rewards": 0}
+    
+    # ===== MÉTODOS DE ECONOMIA AVANÇADA =====
+    
+    async def create_custom_role(self, user_id: str, guild_id: str, role_id: str, role_name: str, role_color: str, expires_at: str = None):
+        """Cria uma custom role para o utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO custom_roles (user_id, guild_id, role_id, role_name, role_color, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (user_id, guild_id, role_id, role_name, role_color, expires_at))
+            await db.commit()
+    
+    async def get_custom_role(self, user_id: str, guild_id: str):
+        """Obtém custom role do utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT role_id, role_name, role_color, created_at, expires_at
+                FROM custom_roles
+                WHERE user_id = ? AND guild_id = ?
+            """, (user_id, guild_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "role_id": row[0],
+                        "role_name": row[1],
+                        "role_color": row[2],
+                        "created_at": row[3],
+                        "expires_at": row[4]
+                    }
+                return None
+    
+    async def delete_custom_role(self, user_id: str, guild_id: str):
+        """Remove custom role do utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                DELETE FROM custom_roles
+                WHERE user_id = ? AND guild_id = ?
+            """, (user_id, guild_id))
+            await db.commit()
+    
+    async def create_trade(self, guild_id: str, sender_id: str, receiver_id: str, sender_coins: int, sender_items: str, receiver_coins: int, receiver_items: str):
+        """Cria uma proposta de trade"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO trades (guild_id, sender_id, receiver_id, sender_offer_coins, sender_offer_items, receiver_offer_coins, receiver_offer_items)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (guild_id, sender_id, receiver_id, sender_coins, sender_items, receiver_coins, receiver_items))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def get_trade(self, trade_id: int):
+        """Obtém detalhes de um trade"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT trade_id, guild_id, sender_id, receiver_id, sender_offer_coins, sender_offer_items,
+                       receiver_offer_coins, receiver_offer_items, status, created_at, completed_at
+                FROM trades
+                WHERE trade_id = ?
+            """, (trade_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "trade_id": row[0],
+                        "guild_id": row[1],
+                        "sender_id": row[2],
+                        "receiver_id": row[3],
+                        "sender_offer_coins": row[4],
+                        "sender_offer_items": row[5],
+                        "receiver_offer_coins": row[6],
+                        "receiver_offer_items": row[7],
+                        "status": row[8],
+                        "created_at": row[9],
+                        "completed_at": row[10]
+                    }
+                return None
+    
+    async def update_trade_status(self, trade_id: int, status: str):
+        """Atualiza status de um trade"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE trades
+                SET status = ?, completed_at = CURRENT_TIMESTAMP
+                WHERE trade_id = ?
+            """, (status, trade_id))
+            await db.commit()
+    
+    async def get_pending_trades(self, user_id: str, guild_id: str):
+        """Obtém trades pendentes para um utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT trade_id, sender_id, receiver_id, sender_offer_coins, receiver_offer_coins, created_at
+                FROM trades
+                WHERE guild_id = ? AND (sender_id = ? OR receiver_id = ?) AND status = 'pending'
+                ORDER BY created_at DESC
+            """, (guild_id, user_id, user_id)) as cursor:
+                rows = await cursor.fetchall()
+                return [{"trade_id": r[0], "sender_id": r[1], "receiver_id": r[2], "sender_coins": r[3], "receiver_coins": r[4], "created_at": r[5]} for r in rows]
+    
+    async def add_achievement(self, achievement_id: str, name: str, description: str, emoji: str, reward_coins: int, reward_badge: str, requirement_type: str, requirement_value: int, tier: str = "bronze"):
+        """Adiciona um achievement ao sistema"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO achievements (achievement_id, name, description, emoji, reward_coins, reward_badge, requirement_type, requirement_value, tier)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (achievement_id, name, description, emoji, reward_coins, reward_badge, requirement_type, requirement_value, tier))
+            await db.commit()
+    
+    async def unlock_achievement(self, user_id: str, guild_id: str, achievement_id: str):
+        """Desbloqueia achievement para utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            try:
+                await db.execute("""
+                    INSERT INTO user_achievements (user_id, guild_id, achievement_id)
+                    VALUES (?, ?, ?)
+                """, (user_id, guild_id, achievement_id))
+                await db.commit()
+                return True
+            except:
+                return False  # Já tinha desbloqueado
+    
+    async def get_user_achievements(self, user_id: str, guild_id: str):
+        """Obtém achievements desbloqueados pelo utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT a.achievement_id, a.name, a.description, a.emoji, a.tier, ua.unlocked_at, ua.claimed
+                FROM user_achievements ua
+                JOIN achievements a ON ua.achievement_id = a.achievement_id
+                WHERE ua.user_id = ? AND ua.guild_id = ?
+                ORDER BY ua.unlocked_at DESC
+            """, (user_id, guild_id)) as cursor:
+                rows = await cursor.fetchall()
+                return [{"id": r[0], "name": r[1], "description": r[2], "emoji": r[3], "tier": r[4], "unlocked_at": r[5], "claimed": bool(r[6])} for r in rows]
+    
+    async def claim_achievement_reward(self, user_id: str, guild_id: str, achievement_id: str):
+        """Marca achievement como claimed"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE user_achievements
+                SET claimed = 1
+                WHERE user_id = ? AND guild_id = ? AND achievement_id = ?
+            """, (user_id, guild_id, achievement_id))
+            await db.commit()
+    
+    async def create_auction(self, guild_id: str, seller_id: str, item_name: str, item_description: str, item_emoji: str, item_rarity: str, starting_bid: int, buyout_price: int, ends_at: str):
+        """Cria um leilão"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO auctions (guild_id, seller_id, item_name, item_description, item_emoji, item_rarity, starting_bid, buyout_price, ends_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (guild_id, seller_id, item_name, item_description, item_emoji, item_rarity, starting_bid, buyout_price, ends_at))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def place_bid(self, auction_id: int, bidder_id: str, bid_amount: int):
+        """Coloca uma bid num leilão"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # Atualizar leilão
+            await db.execute("""
+                UPDATE auctions
+                SET current_bid = ?, current_bidder_id = ?
+                WHERE auction_id = ?
+            """, (bid_amount, bidder_id, auction_id))
+            
+            # Registar bid
+            await db.execute("""
+                INSERT INTO auction_bids (auction_id, bidder_id, bid_amount)
+                VALUES (?, ?, ?)
+            """, (auction_id, bidder_id, bid_amount))
+            
+            await db.commit()
+    
+    async def get_auction(self, auction_id: int):
+        """Obtém detalhes de um leilão"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT auction_id, guild_id, seller_id, item_name, item_description, item_emoji, item_rarity,
+                       starting_bid, current_bid, current_bidder_id, buyout_price, status, created_at, ends_at
+                FROM auctions
+                WHERE auction_id = ?
+            """, (auction_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "auction_id": row[0], "guild_id": row[1], "seller_id": row[2],
+                        "item_name": row[3], "item_description": row[4], "item_emoji": row[5],
+                        "item_rarity": row[6], "starting_bid": row[7], "current_bid": row[8],
+                        "current_bidder_id": row[9], "buyout_price": row[10], "status": row[11],
+                        "created_at": row[12], "ends_at": row[13]
+                    }
+                return None
+    
+    async def get_active_auctions(self, guild_id: str):
+        """Obtém leilões ativos"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT auction_id, item_name, item_emoji, item_rarity, starting_bid, current_bid, ends_at
+                FROM auctions
+                WHERE guild_id = ? AND status = 'active'
+                ORDER BY ends_at ASC
+            """, (guild_id,)) as cursor:
+                rows = await cursor.fetchall()
+                return [{"auction_id": r[0], "item_name": r[1], "item_emoji": r[2], "item_rarity": r[3], "starting_bid": r[4], "current_bid": r[5], "ends_at": r[6]} for r in rows]
+    
+    async def complete_auction(self, auction_id: int, status: str = "completed"):
+        """Completa um leilão"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE auctions
+                SET status = ?
+                WHERE auction_id = ?
+            """, (status, auction_id))
+            await db.commit()
+    
+    async def create_event(self, guild_id: str, event_type: str, event_name: str, multiplier: float, bonus_coins: int, description: str, started_by: str, ends_at: str):
+        """Cria um evento especial"""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO active_events (guild_id, event_type, event_name, multiplier, bonus_coins, description, started_by, ends_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (guild_id, event_type, event_name, multiplier, bonus_coins, description, started_by, ends_at))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def get_active_events(self, guild_id: str):
+        """Obtém eventos ativos"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT event_id, event_type, event_name, multiplier, bonus_coins, description, started_at, ends_at
+                FROM active_events
+                WHERE guild_id = ? AND datetime(ends_at) > datetime('now')
+            """, (guild_id,)) as cursor:
+                rows = await cursor.fetchall()
+                return [{"event_id": r[0], "event_type": r[1], "event_name": r[2], "multiplier": r[3], "bonus_coins": r[4], "description": r[5], "started_at": r[6], "ends_at": r[7]} for r in rows]
+    
+    async def add_inventory_item(self, user_id: str, guild_id: str, item_id: str, item_name: str, item_type: str, item_rarity: str, item_data: str = None, quantity: int = 1, tradeable: bool = True):
+        """Adiciona item ao inventário"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # Verificar se já tem o item
+            async with db.execute("""
+                SELECT quantity FROM inventory_items
+                WHERE user_id = ? AND guild_id = ? AND item_id = ?
+            """, (user_id, guild_id, item_id)) as cursor:
+                row = await cursor.fetchone()
+                
+                if row:
+                    # Incrementar quantidade
+                    await db.execute("""
+                        UPDATE inventory_items
+                        SET quantity = quantity + ?
+                        WHERE user_id = ? AND guild_id = ? AND item_id = ?
+                    """, (quantity, user_id, guild_id, item_id))
+                else:
+                    # Adicionar novo item
+                    await db.execute("""
+                        INSERT INTO inventory_items (user_id, guild_id, item_id, item_name, item_type, item_rarity, item_data, quantity, tradeable)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (user_id, guild_id, item_id, item_name, item_type, item_rarity, item_data, quantity, 1 if tradeable else 0))
+                
+                await db.commit()
+    
+    async def get_user_inventory(self, user_id: str, guild_id: str):
+        """Obtém inventário do utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT item_id, item_name, item_type, item_rarity, quantity, tradeable, acquired_at
+                FROM inventory_items
+                WHERE user_id = ? AND guild_id = ?
+                ORDER BY item_rarity DESC, acquired_at DESC
+            """, (user_id, guild_id)) as cursor:
+                rows = await cursor.fetchall()
+                return [{"item_id": r[0], "item_name": r[1], "item_type": r[2], "item_rarity": r[3], "quantity": r[4], "tradeable": bool(r[5]), "acquired_at": r[6]} for r in rows]
+    
+    async def remove_inventory_item(self, user_id: str, guild_id: str, item_id: str, quantity: int = 1):
+        """Remove item do inventário"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # Verificar quantidade atual
+            async with db.execute("""
+                SELECT quantity FROM inventory_items
+                WHERE user_id = ? AND guild_id = ? AND item_id = ?
+            """, (user_id, guild_id, item_id)) as cursor:
+                row = await cursor.fetchone()
+                
+                if not row:
+                    return False
+                
+                if row[0] <= quantity:
+                    # Remover completamente
+                    await db.execute("""
+                        DELETE FROM inventory_items
+                        WHERE user_id = ? AND guild_id = ? AND item_id = ?
+                    """, (user_id, guild_id, item_id))
+                else:
+                    # Decrementar quantidade
+                    await db.execute("""
+                        UPDATE inventory_items
+                        SET quantity = quantity - ?
+                        WHERE user_id = ? AND guild_id = ? AND item_id = ?
+                    """, (quantity, user_id, guild_id, item_id))
+                
+                await db.commit()
+                return True
 
 
 # Instância global

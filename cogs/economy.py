@@ -113,6 +113,8 @@ class SimpleEconomy(commands.Cog):
             self.data["users"][user_id] = {
                 "balance": 2500,  # Saldo inicial como no DroppersShopBOT
                 "last_daily": None,
+                "last_work": None,
+                "last_crime": None,
                 "daily_streak": 0,
                 "total_earned": 2500,
                 "total_donated": 0,
@@ -310,6 +312,227 @@ class SimpleEconomy(commands.Cog):
             )
         
         embed.set_footer(text="💡 Volta amanhã para manteres o streak e ganhares ainda mais!")
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="trabalho", description="Trabalha para ganhar EPA Coins (cooldown: 1h)")
+    async def work(self, interaction: discord.Interaction):
+        """Trabalhar para ganhar coins (cooldown 1h)"""
+        user_id = str(interaction.user.id)
+        user_data = self.get_user_data(user_id)
+        now = datetime.now()
+        
+        # Verificar cooldown (1 hora)
+        cooldown_seconds = 3600
+        last_work = user_data.get("last_work")
+        
+        if last_work:
+            last_work_time = datetime.fromisoformat(last_work)
+            time_diff = (now - last_work_time).total_seconds()
+            
+            if time_diff < cooldown_seconds:
+                remaining = cooldown_seconds - time_diff
+                hours = int(remaining // 3600)
+                minutes = int((remaining % 3600) // 60)
+                seconds = int(remaining % 60)
+                
+                # Criar barra de progresso visual
+                progress = time_diff / cooldown_seconds
+                bar_length = 10
+                filled = int(bar_length * progress)
+                bar = "█" * filled + "░" * (bar_length - filled)
+                
+                next_work_timestamp = int((last_work_time + timedelta(seconds=cooldown_seconds)).timestamp())
+                
+                embed = discord.Embed(
+                    title="⏰ Em Cooldown",
+                    description=f"Já trabalhaste recentemente!\n\n**[{bar}]** {int(progress * 100)}%",
+                    color=0xff4444
+                )
+                embed.add_field(
+                    name="⏱️ Disponível em",
+                    value=f"<t:{next_work_timestamp}:R>",
+                    inline=True
+                )
+                embed.add_field(
+                    name="⏲️ Tempo Restante",
+                    value=f"{hours:02d}:{minutes:02d}:{seconds:02d}",
+                    inline=True
+                )
+                return await interaction.response.send_message(embed=embed)
+        
+        # Trabalhos disponíveis com diferentes recompensas
+        jobs = [
+            {"name": "Programador", "emoji": "💻", "reward": (300, 600)},
+            {"name": "Designer", "emoji": "🎨", "reward": (250, 550)},
+            {"name": "Professor", "emoji": "👨‍🏫", "reward": (280, 520)},
+            {"name": "Médico", "emoji": "⚕️", "reward": (350, 650)},
+            {"name": "Engenheiro", "emoji": "🔧", "reward": (320, 600)},
+            {"name": "Chef", "emoji": "👨‍🍳", "reward": (270, 530)},
+            {"name": "Artista", "emoji": "🎭", "reward": (240, 500)},
+            {"name": "Músico", "emoji": "🎵", "reward": (260, 520)},
+        ]
+        
+        job = random.choice(jobs)
+        reward = random.randint(job["reward"][0], job["reward"][1])
+        
+        # Bónus aleatório (10% de chance)
+        bonus = 0
+        bonus_msg = ""
+        if random.random() < 0.1:
+            bonus = random.randint(100, 300)
+            reward += bonus
+            bonus_msg = f"\n🎁 **Bónus:** +{self.get_coin_display(bonus)}"
+        
+        # Atualizar dados
+        user_data["last_work"] = now.isoformat()
+        self.add_money(user_id, reward)
+        
+        embed = discord.Embed(
+            title=f"{job['emoji']} Trabalho Completo!",
+            description=f"Trabalhaste como **{job['name']}** e ganhaste **{self.get_coin_display(reward)}**!{bonus_msg}",
+            color=0x00ff88
+        )
+        
+        embed.add_field(
+            name="💰 Ganhos",
+            value=self.get_coin_display(reward),
+            inline=True
+        )
+        
+        embed.add_field(
+            name="💳 Novo Saldo",
+            value=self.get_coin_display(self.get_balance(user_id)),
+            inline=True
+        )
+        
+        next_timestamp = int((now + timedelta(seconds=cooldown_seconds)).timestamp())
+        embed.set_footer(text=f"💡 Próximo trabalho disponível em: <t:{next_timestamp}:R>")
+        
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="crime", description="Tenta um crime arriscado (cooldown: 2h)")
+    async def crime(self, interaction: discord.Interaction):
+        """Cometer crime com risco/recompensa alta (cooldown 2h)"""
+        user_id = str(interaction.user.id)
+        user_data = self.get_user_data(user_id)
+        now = datetime.now()
+        
+        # Verificar cooldown (2 horas)
+        cooldown_seconds = 7200
+        last_crime = user_data.get("last_crime")
+        
+        if last_crime:
+            last_crime_time = datetime.fromisoformat(last_crime)
+            time_diff = (now - last_crime_time).total_seconds()
+            
+            if time_diff < cooldown_seconds:
+                remaining = cooldown_seconds - time_diff
+                hours = int(remaining // 3600)
+                minutes = int((remaining % 3600) // 60)
+                seconds = int(remaining % 60)
+                
+                # Barra de progresso visual
+                progress = time_diff / cooldown_seconds
+                bar_length = 10
+                filled = int(bar_length * progress)
+                bar = "█" * filled + "░" * (bar_length - filled)
+                
+                next_crime_timestamp = int((last_crime_time + timedelta(seconds=cooldown_seconds)).timestamp())
+                
+                embed = discord.Embed(
+                    title="🚔 Procurado pela Polícia",
+                    description=f"Estás em modo discreto após o último crime!\n\n**[{bar}]** {int(progress * 100)}%",
+                    color=0xff4444
+                )
+                embed.add_field(
+                    name="⏱️ Seguro em",
+                    value=f"<t:{next_crime_timestamp}:R>",
+                    inline=True
+                )
+                embed.add_field(
+                    name="⏲️ Tempo Restante",
+                    value=f"{hours:02d}:{minutes:02d}:{seconds:02d}",
+                    inline=True
+                )
+                return await interaction.response.send_message(embed=embed)
+        
+        # Crimes disponíveis com diferentes riscos
+        crimes = [
+            {"name": "Assaltar banco", "emoji": "🏦", "success_reward": (800, 1500), "fail_penalty": (400, 800), "success_rate": 0.45},
+            {"name": "Roubar loja", "emoji": "🏪", "success_reward": (500, 1000), "fail_penalty": (250, 500), "success_rate": 0.55},
+            {"name": "Hackear sistema", "emoji": "💻", "success_reward": (1000, 1800), "fail_penalty": (500, 1000), "success_rate": 0.40},
+            {"name": "Contrabando", "emoji": "📦", "success_reward": (700, 1300), "fail_penalty": (350, 650), "success_rate": 0.50},
+            {"name": "Falsificação", "emoji": "💵", "success_reward": (600, 1200), "fail_penalty": (300, 600), "success_rate": 0.52},
+        ]
+        
+        crime_choice = random.choice(crimes)
+        success = random.random() < crime_choice["success_rate"]
+        
+        user_data["last_crime"] = now.isoformat()
+        
+        if success:
+            # Crime bem sucedido
+            reward = random.randint(crime_choice["success_reward"][0], crime_choice["success_reward"][1])
+            
+            # Chance de jackpot (5%)
+            jackpot = ""
+            if random.random() < 0.05:
+                jackpot_bonus = random.randint(500, 1000)
+                reward += jackpot_bonus
+                jackpot = f"\n💎 **JACKPOT!** +{self.get_coin_display(jackpot_bonus)}"
+            
+            self.add_money(user_id, reward)
+            
+            success_messages = [
+                "Conseguiste escapar sem ser visto!",
+                "Trabalho perfeito! Ninguém desconfia!",
+                "És um mestre do crime!",
+                "Executado com perfeição!",
+                "A polícia nem percebeu o que aconteceu!"
+            ]
+            
+            embed = discord.Embed(
+                title=f"✅ {crime_choice['emoji']} Crime Bem Sucedido!",
+                description=f"**{crime_choice['name']}**\n{random.choice(success_messages)}\n\nGanhaste **{self.get_coin_display(reward)}**!{jackpot}",
+                color=0x00ff88
+            )
+            
+            embed.add_field(name="💰 Ganhos", value=self.get_coin_display(reward), inline=True)
+            embed.add_field(name="💳 Novo Saldo", value=self.get_coin_display(self.get_balance(user_id)), inline=True)
+            embed.add_field(name="🎯 Taxa de Sucesso", value=f"{int(crime_choice['success_rate'] * 100)}%", inline=True)
+            
+        else:
+            # Crime falhado
+            penalty = random.randint(crime_choice["fail_penalty"][0], crime_choice["fail_penalty"][1])
+            
+            current_balance = self.get_balance(user_id)
+            if current_balance < penalty:
+                penalty = current_balance  # Não deixar ficar negativo
+            
+            if penalty > 0:
+                self.remove_money(user_id, penalty)
+            
+            fail_messages = [
+                "Foste apanhado pela polícia!",
+                "Alarme disparou! Fugiste mas perdeste tudo!",
+                "Missão falhada! A polícia confiscou tudo!",
+                "Testemunhas chamaram a polícia!",
+                "Câmaras de segurança captaram-te!"
+            ]
+            
+            embed = discord.Embed(
+                title=f"❌ {crime_choice['emoji']} Crime Falhado!",
+                description=f"**{crime_choice['name']}**\n{random.choice(fail_messages)}\n\nPerdeste **{self.get_coin_display(penalty)}**!",
+                color=0xff4444
+            )
+            
+            embed.add_field(name="💸 Multa", value=self.get_coin_display(penalty), inline=True)
+            embed.add_field(name="💳 Saldo Restante", value=self.get_coin_display(self.get_balance(user_id)), inline=True)
+            embed.add_field(name="🎯 Taxa de Sucesso", value=f"{int(crime_choice['success_rate'] * 100)}%", inline=True)
+        
+        next_timestamp = int((now + timedelta(seconds=cooldown_seconds)).timestamp())
+        embed.set_footer(text=f"⏰ Próximo crime disponível em: <t:{next_timestamp}:R>")
+        
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="apostar", description="Aposta dinheiro em jogos de sorte")

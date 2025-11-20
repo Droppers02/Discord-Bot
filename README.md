@@ -29,7 +29,7 @@ Bot Discord completo com sistema de economia, jogos, música, moderação, ticke
 
 ### 🎮 Sistemas Principais
 
-- **💰 Economia** - Sistema completo com moedas, itens, loja e inventário
+- **💰 Economia Avançada** - Moedas, loja, custom roles, trading, leilões, achievements, eventos especiais
 - **🎲 Jogos** - Jogos interativos (blackjack, slots, crash, coinflip, etc.)
 - **🎵 Música** - Player de música com fila e controles
 - **⭐ Social Avançado** - XP, níveis, perfis customizáveis, badges, casamentos, streaks e histórico
@@ -48,6 +48,11 @@ Bot Discord completo com sistema de economia, jogos, música, moderação, ticke
 - ✅ Comandos Slash (/)
 - ✅ Views e Buttons interativos
 - ✅ Gestão de erros centralizada
+- ✅ Cooldowns visuais com barras de progresso
+- ✅ Sistema de trading P2P
+- ✅ Leilões de itens raros
+- ✅ Achievements com recompensas
+- ✅ Eventos especiais com multiplicadores
 - ✅ Configuração via variáveis de ambiente
 
 ---
@@ -417,15 +422,44 @@ https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=8&scope
 
 ### 💰 Economia
 
+**Básico:**
 ```
-/balance [@user]          - Ver saldo
-/daily                    - Recompensa diária
-/work                     - Trabalhar por moedas
-/shop                     - Loja de itens
-/buy <item>              - Comprar item
-/inventory [@user]        - Ver inventário
-/transfer <@user> <valor> - Transferir moedas
-/leaderboard             - Top utilizadores
+/saldo [@user]            - Ver saldo de EPA Coins
+/daily                    - Recompensa diária (streak bonus)
+/trabalho                 - Trabalhar por coins (cooldown: 1h)
+/crime                    - Crime arriscado (cooldown: 2h)
+/doar <@user> <valor>     - Doar coins a alguém
+/perfil [@user]           - Ver perfil económico completo
+```
+
+**Loja & Itens:**
+```
+/loja                     - Ver itens disponíveis
+/comprar <item>           - Comprar item da loja
+/inventario [@user]       - Ver inventário
+```
+
+**Economia Avançada:**
+```
+/comprar_role <nome> <cor> - Comprar Custom Role (50k coins)
+/editar_role [nome] [cor]  - Editar a tua Custom Role
+/remover_role              - Remover Custom Role
+/propor_trade <@user> <coins_tuas> <coins_deles> - Propor troca
+/trades_pendentes          - Ver trades pendentes
+/conquistas [@user]        - Ver achievements desbloqueados
+```
+
+**Leilões:**
+```
+/criar_leilao <nome> <desc> <lance> [compra_ja] [horas] - Criar leilão
+/leiloes                   - Ver leilões ativos
+/dar_lance <id> <valor>    - Dar lance em leilão
+```
+
+**Eventos (Admin):**
+```
+/criar_evento <tipo> <horas> [multiplicador] - Criar evento especial
+/eventos_ativos             - Ver eventos ativos
 ```
 
 ### 🎲 Jogos de Aposta
@@ -664,11 +698,13 @@ EPA-BOT/
 ├── .gitignore          # Arquivos ignorados
 │
 ├── cogs/               # Módulos do bot
-│   ├── economy.py      # Sistema de economia
+│   ├── economy.py      # Sistema de economia básico
+│   ├── economy_advanced.py # Economia avançada (trades, leilões, achievements)
 │   ├── games.py        # Jogos básicos
 │   ├── games_extra.py  # Jogos extras
 │   ├── music.py        # Player de música
 │   ├── social.py       # Sistema social (XP, perfis, badges)
+│   ├── social_advanced.py # Social avançado (casamentos, streaks, histórico)
 │   ├── social_advanced.py  # Social avançado (casamento, streaks, histórico)
 │   ├── tickets.py      # Sistema de tickets
 │   ├── moderation.py   # Moderação
