@@ -47,9 +47,9 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 
 - [ ] Adicionar poker Texas Hold'em
 - [ ] Sistema de torneios
-- [ ] Estatísticas detalhadas por jogo
-- [ ] Leaderboards semanais/mensais
-- [ ] Mini-jogos de reação rápida
+- [x] Estatísticas detalhadas por jogo
+- [x] Leaderboards semanais/mensais
+- [x] Mini-jogos de reação rápida
 - [ ] Sistema de apostas em eventos
 
 ### Música
