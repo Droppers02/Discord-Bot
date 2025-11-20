@@ -111,6 +111,12 @@ class EPABot(commands.Bot):
             if self.config.server_id:
                 guild = discord.Object(id=self.config.server_id)
                 
+                # Limpar comandos antigos do servidor para evitar duplicação
+                self.tree.clear_commands(guild=guild)
+                
+                # Copiar comandos globais para o servidor antes de sincronizar
+                self.tree.copy_global_to(guild=guild)
+                
                 # Sincronizar comandos para o servidor específico
                 synced = await self.tree.sync(guild=guild)
                 
