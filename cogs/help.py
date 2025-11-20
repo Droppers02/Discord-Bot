@@ -38,16 +38,41 @@ class HelpCog(commands.Cog):
         
         # Comandos de Jogos
         game_commands = [
-            "• `/jogodogalo [oponente]` - Jogo do galo (contra bot ou utilizador)",
-            "• `/coinflip [escolha]` - Cara ou coroa (com escolha opcional)",
-            "• `/quiz` - Jogo de perguntas e respostas",
-            "• `/forca` - Jogo da forca",
+            "• `/jogodogalo [oponente]` - Jogo do galo (vs bot ou player)",
+            "• `/4emlinha [oponente]` - 4 em linha/Connect Four",
+            "• `/coinflip [escolha]` - Cara ou coroa",
+            "• `/quiz` - Quiz de perguntas e respostas",
+            "• `/forca` - Jogo da forca melhorado",
             "• `/blackjack <aposta>` - Jogo de Blackjack",
-            "• `/memes` - Envia um meme aleatório"
+            "• `/memes` - Envia meme aleatório"
         ]
+        
+        game_mini = [
+            "• `/reacao` - Jogo de reação rápida com emojis",
+            "• `/matematica` - Desafio matemático rápido",
+            "• `/memoria` - Jogo de memória com pares"
+        ]
+        
+        game_stats = [
+            "• `/gamestats [jogo] [user]` - Ver estatísticas de jogos",
+            "• `/gameleaderboard <jogo>` - Leaderboard top 10"
+        ]
+        
         embed.add_field(
-            name="🎮 **Jogos**",
+            name="🎮 **Jogos Principais**",
             value="\n".join(game_commands),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="⚡ **Mini-Jogos de Reação**",
+            value="\n".join(game_mini),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="📊 **Estatísticas**",
+            value="\n".join(game_stats),
             inline=False
         )
         
@@ -192,7 +217,8 @@ class HelpCog(commands.Cog):
             name="ℹ️ **Informações Úteis**",
             value="🔹 **Prefixo:** Este bot usa comandos slash (`/`)\n"
                   "🔹 **Economia:** Sistema completo com EPA Coins <:epacoin2:1407389417290727434>\n"
-                  "🔹 **Jogos:** Quiz, Forca, Blackjack, Apostas PvP e muito mais!\n"
+                  "🔹 **Jogos:** Galo, 4 em Linha, Forca, Quiz, Blackjack, Mini-jogos!\n"
+                  "🔹 **Stats:** Sistema de estatísticas e leaderboards por jogo\n"
                   "🔹 **Social:** Sistema de níveis, XP e reputação automático\n"
                   "🔹 **Música:** Playlists personalizadas e votação para skip\n"
                   "🔹 **Tickets:** 5 categorias, 1 ticket/user, formato 🎫┃user-0001\n"

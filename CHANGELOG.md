@@ -4,6 +4,72 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 ---
 
+## [2.5.0] - 2025-11-20
+
+### 🎮 Sistema de Jogos v2 - Completo Overhaul
+
+**Correções**
+
+- ✅ **Jogo do Galo**: Corrigido bug "this application did not respond" (timeout error)
+  - Adicionado proper `interaction.response` handling nas callbacks
+  - Jogo agora responde instantaneamente sem timeouts
+
+**Novos Jogos**
+
+- ✅ **4 em Linha** (`/4emlinha`)
+  - Jogo clássico Connect Four com IA bot
+  - Tabuleiro 6x7 interativo com botões
+  - Bot AI com estratégia: ganhar > bloquear > centro > aleatório
+  - Detecção automática de vitória (horizontal, vertical, diagonal)
+
+- ✅ **Mini-Jogos de Reação** (3 novos jogos):
+  - `/reacao` - Clica no emoji correto o mais rápido possível (10s)
+  - `/matematica` - Resolve cálculos simples (+, -, ×) contra o tempo (15s)
+  - `/memoria` - Jogo de memória com pares de emojis (30s)
+  - Recompensas dinâmicas baseadas na velocidade de reação
+  - Sistema de múltipla escolha com botões
+
+**Melhorias em Jogos Existentes**
+
+- ✅ **Forca** (`/forca`)
+  - Interface completamente redesenhada com botões
+  - 26 botões alfabéticos em grid 5x5+1
+  - 20 palavras novas com sistema de dicas
+  - Display visual do boneco da forca (ASCII art)
+  - UX muito melhorada vs sistema antigo de texto
+
+**Sistema de Estatísticas**
+
+- ✅ **Base de Dados de Stats** (`utils/database.py`)
+  - Nova tabela `game_stats`: tracking completo por jogo e utilizador
+  - Campos: wins, losses, draws, total_games, total_earnings, best_streak, current_streak
+  - Nova tabela `tournaments` (estrutura pronta para futuro)
+  - Métodos: `update_game_stats()`, `get_game_stats()`, `get_game_leaderboard()`
+  - Indexes otimizados para performance
+
+- ✅ **Comandos de Estatísticas**:
+  - `/gamestats [@user] [jogo]` - Ver stats detalhadas
+    - Win rate, total de jogos, earnings, streaks
+    - Filtro por jogo específico ou visão geral
+  - `/gameleaderboard <jogo>` - Top 10 rankings
+    - Leaderboards por tipo de jogo
+    - Medals (🥇🥈🥉) para top 3
+    - Jogos suportados: galo, 4emlinha, forca, quiz, blackjack, reacao, matematica, memoria
+
+**Documentação**
+
+- ✅ Atualizado `/help` com 3 seções de jogos (Principais, Mini-Jogos, Estatísticas)
+- ✅ Atualizado `README.md` com todos os novos comandos
+- ✅ Atualizado `TODO.md` marcando features completas
+
+**Resumo**
+- **9 jogos** totais disponíveis (4 clássicos + 2 aposta + 3 mini-jogos)
+- **Sistema completo de stats** com tracking automático
+- **Leaderboards** competitivos por jogo
+- **Todas as features** do TODO completadas (exceto Poker/Torneios)
+
+---
+
 ## [2.4.0] - 2025-11-20
 
 ### 🛡️ Sistema de Moderação Avançado

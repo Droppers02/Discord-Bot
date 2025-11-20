@@ -428,7 +428,7 @@ https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=8&scope
 /leaderboard             - Top utilizadores
 ```
 
-### 🎲 Jogos
+### 🎲 Jogos de Aposta
 
 ```
 /blackjack <aposta>      - Jogar blackjack
@@ -438,6 +438,32 @@ https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=8&scope
 /roulette <aposta> <tipo> - Roleta
 /mines <aposta>          - Campo minado
 ```
+
+### 🎮 Jogos Clássicos
+
+```
+/galo [@adversário]      - Jogo do Galo (Tic-Tac-Toe)
+/4emlinha [@adversário]  - 4 em Linha (Connect Four)
+/forca                   - Jogo da Forca (melhorado com botões)
+/quiz                    - Quiz de conhecimentos
+```
+
+### ⚡ Mini-Jogos de Reação
+
+```
+/reacao                  - Clica no emoji mais rápido!
+/matematica              - Resolve cálculos matemáticos
+/memoria                 - Jogo de memória com emojis
+```
+
+### 📊 Estatísticas de Jogos
+
+```
+/gamestats [@user] [jogo] - Ver estatísticas de jogos
+/gameleaderboard <jogo>   - Top 10 jogadores por jogo
+```
+
+**Jogos disponíveis para stats:** `galo`, `4emlinha`, `forca`, `quiz`, `blackjack`, `reacao`, `matematica`, `memoria`
 
 ### 🎵 Música
 
