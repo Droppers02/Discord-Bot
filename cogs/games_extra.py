@@ -734,6 +734,89 @@ class GamesExtraCog(commands.Cog):
                 except:
                     pass
 
+    @app_commands.command(name="reacao", description="Mini-jogo de reação rápida")
+    async def reaction_game(self, interaction: discord.Interaction):
+        """Jogo de reação - clica no emoji correto o mais rápido possível!"""
+        emojis = ["🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍒", "🥝", "🍑"]
+        target_emoji = random.choice(emojis)
+        
+        # Embaralhar emojis
+        button_emojis = random.sample(emojis, 5)
+        if target_emoji not in button_emojis:
+            button_emojis[random.randint(0, 4)] = target_emoji
+        random.shuffle(button_emojis)
+        
+        embed = discord.Embed(
+            title="⚡ Jogo de Reação Rápida!",
+            description=f"**Clica no:** {target_emoji}\n\n⏱️ O mais rápido possível!",
+            color=discord.Color.orange()
+        )
+        
+        view = ReactionGameView(target_emoji, button_emojis, interaction.user.id, self)
+        view.start_time = asyncio.get_event_loop().time()
+        
+        await interaction.response.send_message(embed=embed, view=view)
+
+    @app_commands.command(name="matematica", description="Desafio matemático rápido")
+    async def math_challenge(self, interaction: discord.Interaction):
+        """Resolve um problema matemático o mais rápido possível!"""
+        operations = ['+', '-', '*']
+        operation = random.choice(operations)
+        
+        if operation == '+':
+            num1 = random.randint(10, 50)
+            num2 = random.randint(10, 50)
+            answer = num1 + num2
+            question = f"{num1} + {num2}"
+        elif operation == '-':
+            num1 = random.randint(20, 100)
+            num2 = random.randint(10, num1)
+            answer = num1 - num2
+            question = f"{num1} - {num2}"
+        else:  # *
+            num1 = random.randint(5, 15)
+            num2 = random.randint(2, 12)
+            answer = num1 * num2
+            question = f"{num1} × {num2}"
+        
+        # Gerar opções (resposta correta + 3 erradas)
+        options = [answer]
+        while len(options) < 4:
+            wrong = answer + random.randint(-10, 10)
+            if wrong not in options and wrong > 0:
+                options.append(wrong)
+        
+        random.shuffle(options)
+        
+        embed = discord.Embed(
+            title="🧮 Desafio Matemático!",
+            description=f"**Quanto é:** {question} = ?\n\n⏱️ Responde rápido!",
+            color=discord.Color.blue()
+        )
+        
+        view = MathGameView(answer, options, interaction.user.id, self)
+        view.start_time = asyncio.get_event_loop().time()
+        
+        await interaction.response.send_message(embed=embed, view=view)
+
+    @app_commands.command(name="memoria", description="Jogo de memória com emojis")
+    async def memory_game(self, interaction: discord.Interaction):
+        """Memoriza e encontra os pares de emojis!"""
+        emojis = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊"]
+        pairs = random.sample(emojis, 3)
+        card_emojis = pairs + pairs  # Duplicar para criar pares
+        random.shuffle(card_emojis)
+        
+        embed = discord.Embed(
+            title="🧠 Jogo de Memória!",
+            description="Encontra todos os pares de emojis!\n\nClica nas cartas para revelar.",
+            color=discord.Color.purple()
+        )
+        
+        view = MemoryGameView(card_emojis, interaction.user.id, self)
+        
+        await interaction.response.send_message(embed=embed, view=view)
+
 
 class BlackjackView(discord.ui.View):
     """View para botões do Blackjack"""
@@ -784,6 +867,254 @@ class BlackjackView(discord.ui.View):
         
         game["finished"] = True
         await self.cog._show_blackjack_status(interaction, self.user_id)
+
+
+class ReactionGameView(discord.ui.View):
+    """View para jogo de reação"""
+    
+    def __init__(self, target_emoji: str, button_emojis: list, user_id: int, cog):
+        super().__init__(timeout=10)
+        self.target_emoji = target_emoji
+        self.user_id = user_id
+        self.cog = cog
+        self.start_time = None
+        self.finished = False
+        
+        for emoji in button_emojis:
+            button = discord.ui.Button(
+                emoji=emoji,
+                style=discord.ButtonStyle.primary,
+                custom_id=f"reaction_{emoji}"
+            )
+            button.callback = self.make_callback(emoji)
+            self.add_item(button)
+    
+    def make_callback(self, emoji: str):
+        async def callback(interaction: discord.Interaction):
+            if self.finished:
+                return
+            
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ Não é o teu jogo!", ephemeral=True)
+                return
+            
+            self.finished = True
+            reaction_time = asyncio.get_event_loop().time() - self.start_time
+            
+            for item in self.children:
+                item.disabled = True
+            
+            if emoji == self.target_emoji:
+                reward = max(10, int(50 - reaction_time * 5))
+                
+                embed = discord.Embed(
+                    title="🎉 Correto!",
+                    description=f"Tempo de reação: **{reaction_time:.2f}s**",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="💰 Recompensa", value=f"{reward} EPA Coins")
+                
+                # Dar recompensa
+                try:
+                    economy_cog = self.cog.bot.get_cog("SimpleEconomy")
+                    if economy_cog:
+                        economy_cog.add_money(str(self.user_id), reward)
+                except:
+                    pass
+            else:
+                embed = discord.Embed(
+                    title="❌ Errado!",
+                    description=f"O emoji correto era {self.target_emoji}",
+                    color=discord.Color.red()
+                )
+            
+            await interaction.response.edit_message(embed=embed, view=self)
+        
+        return callback
+
+
+class MathGameView(discord.ui.View):
+    """View para desafio matemático"""
+    
+    def __init__(self, answer: int, options: list, user_id: int, cog):
+        super().__init__(timeout=15)
+        self.answer = answer
+        self.user_id = user_id
+        self.cog = cog
+        self.start_time = None
+        self.finished = False
+        
+        for option in options:
+            button = discord.ui.Button(
+                label=str(option),
+                style=discord.ButtonStyle.primary,
+                custom_id=f"math_{option}"
+            )
+            button.callback = self.make_callback(option)
+            self.add_item(button)
+    
+    def make_callback(self, option: int):
+        async def callback(interaction: discord.Interaction):
+            if self.finished:
+                return
+            
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ Não é o teu jogo!", ephemeral=True)
+                return
+            
+            self.finished = True
+            reaction_time = asyncio.get_event_loop().time() - self.start_time
+            
+            for item in self.children:
+                item.disabled = True
+            
+            if option == self.answer:
+                reward = max(15, int(75 - reaction_time * 10))
+                
+                embed = discord.Embed(
+                    title="🎉 Correto!",
+                    description=f"Tempo: **{reaction_time:.2f}s**\nResposta: **{self.answer}**",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="💰 Recompensa", value=f"{reward} EPA Coins")
+                
+                try:
+                    economy_cog = self.cog.bot.get_cog("SimpleEconomy")
+                    if economy_cog:
+                        economy_cog.add_money(str(self.user_id), reward)
+                except:
+                    pass
+            else:
+                embed = discord.Embed(
+                    title="❌ Errado!",
+                    description=f"A resposta correta era: **{self.answer}**",
+                    color=discord.Color.red()
+                )
+            
+            await interaction.response.edit_message(embed=embed, view=self)
+        
+        return callback
+
+
+class MemoryGameView(discord.ui.View):
+    """View para jogo de memória"""
+    
+    def __init__(self, card_emojis: list, user_id: int, cog):
+        super().__init__(timeout=60)
+        self.card_emojis = card_emojis
+        self.user_id = user_id
+        self.cog = cog
+        self.revealed = [False] * len(card_emojis)
+        self.matched = [False] * len(card_emojis)
+        self.first_card = None
+        self.moves = 0
+        
+        self.update_buttons()
+    
+    def update_buttons(self):
+        self.clear_items()
+        
+        for i in range(6):
+            if self.matched[i]:
+                button = discord.ui.Button(
+                    emoji=self.card_emojis[i],
+                    style=discord.ButtonStyle.success,
+                    disabled=True,
+                    row=i // 3
+                )
+            elif self.revealed[i]:
+                button = discord.ui.Button(
+                    emoji=self.card_emojis[i],
+                    style=discord.ButtonStyle.primary,
+                    disabled=True,
+                    row=i // 3
+                )
+            else:
+                button = discord.ui.Button(
+                    label="❓",
+                    style=discord.ButtonStyle.secondary,
+                    custom_id=f"memory_{i}",
+                    row=i // 3
+                )
+                button.callback = self.make_callback(i)
+            
+            self.add_item(button)
+    
+    def make_callback(self, index: int):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ Não é o teu jogo!", ephemeral=True)
+                return
+            
+            if self.revealed[index] or self.matched[index]:
+                await interaction.response.defer()
+                return
+            
+            self.revealed[index] = True
+            self.moves += 1
+            
+            if self.first_card is None:
+                # Primeira carta revelada
+                self.first_card = index
+                self.update_buttons()
+                
+                embed = discord.Embed(
+                    title="🧠 Jogo de Memória",
+                    description=f"Jogadas: {self.moves}\nEscolhe outra carta!",
+                    color=discord.Color.purple()
+                )
+                
+                await interaction.response.edit_message(embed=embed, view=self)
+            else:
+                # Segunda carta revelada
+                if self.card_emojis[self.first_card] == self.card_emojis[index]:
+                    # Par encontrado!
+                    self.matched[self.first_card] = True
+                    self.matched[index] = True
+                    
+                    # Verificar vitória
+                    if all(self.matched):
+                        reward = max(50, 150 - self.moves * 10)
+                        
+                        embed = discord.Embed(
+                            title="🎉 Parabéns!",
+                            description=f"Encontraste todos os pares em **{self.moves}** jogadas!",
+                            color=discord.Color.gold()
+                        )
+                        embed.add_field(name="💰 Recompensa", value=f"{reward} EPA Coins")
+                        
+                        try:
+                            economy_cog = self.cog.bot.get_cog("SimpleEconomy")
+                            if economy_cog:
+                                economy_cog.add_money(str(self.user_id), reward)
+                        except:
+                            pass
+                        
+                        for item in self.children:
+                            item.disabled = True
+                    else:
+                        embed = discord.Embed(
+                            title="🧠 Jogo de Memória",
+                            description=f"✅ Par encontrado!\nJogadas: {self.moves}",
+                            color=discord.Color.green()
+                        )
+                else:
+                    # Não é um par
+                    await asyncio.sleep(1)
+                    self.revealed[self.first_card] = False
+                    self.revealed[index] = False
+                    
+                    embed = discord.Embed(
+                        title="🧠 Jogo de Memória",
+                        description=f"❌ Não é um par!\nJogadas: {self.moves}",
+                        color=discord.Color.orange()
+                    )
+                
+                self.first_card = None
+                self.update_buttons()
+                await interaction.response.edit_message(embed=embed, view=self)
+        
+        return callback
 
 
 async def setup(bot):
