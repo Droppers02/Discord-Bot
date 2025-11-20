@@ -1335,13 +1335,14 @@ class UtilitiesAdvanced(commands.Cog):
                 bot_logger.info(f"Comandos globais limpos por {interaction.user}")
                 
             else:  # guild
-                # Limpar comandos antigos do servidor
+                # PASSO 1: Limpar comandos do servidor no Discord
                 self.bot.tree.clear_commands(guild=guild)
+                await self.bot.tree.sync(guild=guild)  # Sync vazio para limpar
                 
-                # Copiar comandos globais para o servidor
+                # PASSO 2: Copiar comandos globais para o servidor
                 self.bot.tree.copy_global_to(guild=guild)
                 
-                # Sincronizar uma única vez
+                # PASSO 3: Sincronizar comandos novos
                 synced = await self.bot.tree.sync(guild=guild)
                 
                 await interaction.followup.send(
