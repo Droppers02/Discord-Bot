@@ -36,12 +36,19 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 
 ### Sistema Social
 
-- [ ] Sistema de badges personalizados
-- [ ] Perfis customizáveis
-- [ ] Sistema de casamento entre utilizadores
-- [ ] Histórico de atividade
-- [ ] Top utilizadores por categoria
-- [ ] Sistema de recompensas por streak
+- [x] Sistema de badges personalizados
+- [x] Perfis customizáveis (bio, cor, banner, campos personalizados)
+- [x] Sistema de casamento entre utilizadores
+- [x] Histórico de atividade (últimas 20 ações)
+- [x] Sistema de streaks (daily, mensagens, jogos)
+- [x] Migração de XP para base de dados SQLite
+- [x] Badges automáticos por níveis (10, 25, 50, 100)
+- [x] Sistema de reputação integrado em SQLite
+- [ ] Top utilizadores por categoria (implementar queries completas)
+- [ ] Sistema de recompensas automáticas por streaks
+- [ ] Badges por achievements específicos
+- [ ] Sistema de aniversários de casamento
+- [ ] Ring tier upgrades (premium)
 
 ### Jogos
 

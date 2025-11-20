@@ -47,15 +47,18 @@ class Database:
                 )
             """)
             
-            # Tabela de XP e níveis (social)
+            # Tabela de XP e níveis (social) com reputação integrada
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS user_levels (
                     user_id TEXT,
                     guild_id TEXT,
                     xp INTEGER DEFAULT 0,
                     level INTEGER DEFAULT 1,
+                    reputation INTEGER DEFAULT 0,
                     messages_sent INTEGER DEFAULT 0,
                     last_message_at REAL DEFAULT 0,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
@@ -181,6 +184,84 @@ class Database:
                 )
             """)
             
+            # ===== SISTEMA SOCIAL EXPANDIDO =====
+            
+            # Tabela de badges
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS user_badges (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
+                    badge_id TEXT NOT NULL,
+                    badge_name TEXT NOT NULL,
+                    badge_emoji TEXT,
+                    badge_description TEXT,
+                    earned_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, guild_id, badge_id)
+                )
+            """)
+            
+            # Tabela de perfis customizáveis
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    user_id TEXT,
+                    guild_id TEXT,
+                    bio TEXT,
+                    color TEXT DEFAULT '#5865F2',
+                    banner_url TEXT,
+                    favorite_game TEXT,
+                    birthday TEXT,
+                    pronouns TEXT,
+                    custom_field_1_name TEXT,
+                    custom_field_1_value TEXT,
+                    custom_field_2_name TEXT,
+                    custom_field_2_value TEXT,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (user_id, guild_id)
+                )
+            """)
+            
+            # Tabela de casamentos
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS marriages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id TEXT NOT NULL,
+                    user1_id TEXT NOT NULL,
+                    user2_id TEXT NOT NULL,
+                    married_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    ring_tier INTEGER DEFAULT 1,
+                    anniversary_count INTEGER DEFAULT 0,
+                    status TEXT DEFAULT 'active',
+                    UNIQUE(guild_id, user1_id, user2_id)
+                )
+            """)
+            
+            # Tabela de histórico de atividade
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS activity_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
+                    activity_type TEXT NOT NULL,
+                    activity_data TEXT,
+                    timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Tabela de streaks e recompensas
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS user_streaks (
+                    user_id TEXT,
+                    guild_id TEXT,
+                    streak_type TEXT,
+                    current_streak INTEGER DEFAULT 0,
+                    best_streak INTEGER DEFAULT 0,
+                    last_activity TEXT,
+                    total_rewards INTEGER DEFAULT 0,
+                    PRIMARY KEY (user_id, guild_id, streak_type)
+                )
+            """)
+            
             # Criar índices para melhor performance
             await db.execute("CREATE INDEX IF NOT EXISTS idx_user_items_user ON user_items(user_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_transactions_from ON transactions(from_user_id)")
@@ -190,6 +271,9 @@ class Database:
             await db.execute("CREATE INDEX IF NOT EXISTS idx_game_stats_user ON game_stats(user_id)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_game_stats_type ON game_stats(game_type)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_tournaments_guild ON tournaments(guild_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_badges_user ON user_badges(user_id, guild_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_history(user_id, guild_id)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_marriages_users ON marriages(user1_id, user2_id)")
             
             await db.commit()
             self.logger.info("✅ Base de dados inicializada com sucesso")
@@ -410,16 +494,35 @@ class Database:
             }
     
     async def get_user_level(self, user_id: str, guild_id: str) -> Dict:
-        """Obtém informações de nível de um utilizador"""
+        """Obtém informações de nível de um utilizador incluindo reputação"""
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute("""
-                SELECT xp, level, messages_sent FROM user_levels 
+                SELECT xp, level, messages_sent, reputation FROM user_levels 
                 WHERE user_id = ? AND guild_id = ?
             """, (user_id, guild_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
-                    return {"xp": row[0], "level": row[1], "messages": row[2]}
-                return {"xp": 0, "level": 1, "messages": 0}
+                    return {"xp": row[0], "level": row[1], "messages": row[2], "reputation": row[3]}
+                return {"xp": 0, "level": 1, "messages": 0, "reputation": 0}
+    
+    async def update_user_level(self, user_id: str, guild_id: str, xp: int, level: int, increment_messages: bool = True):
+        """Atualiza XP e nível de um utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            if increment_messages:
+                await db.execute("""
+                    INSERT INTO user_levels (user_id, guild_id, xp, level, messages_sent, updated_at)
+                    VALUES (?, ?, ?, ?, 1, ?)
+                    ON CONFLICT(user_id, guild_id) 
+                    DO UPDATE SET xp = ?, level = ?, messages_sent = messages_sent + 1, updated_at = ?
+                """, (user_id, guild_id, xp, level, datetime.utcnow().isoformat(), xp, level, datetime.utcnow().isoformat()))
+            else:
+                await db.execute("""
+                    INSERT INTO user_levels (user_id, guild_id, xp, level, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(user_id, guild_id) 
+                    DO UPDATE SET xp = ?, level = ?, updated_at = ?
+                """, (user_id, guild_id, xp, level, datetime.utcnow().isoformat(), xp, level, datetime.utcnow().isoformat()))
+            await db.commit()
     
     async def get_leaderboard(self, guild_id: str, limit: int = 10) -> List[Dict]:
         """Obtém o leaderboard de XP"""
@@ -574,6 +677,204 @@ class Database:
                     }
                     for row in rows
                 ]
+    
+    # --- Métodos do Sistema Social Expandido ---
+    
+    async def add_badge(self, user_id: str, guild_id: str, badge_id: str, 
+                       badge_name: str, badge_emoji: str = None, badge_description: str = None):
+        """Adiciona badge a um utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            try:
+                await db.execute("""
+                    INSERT OR IGNORE INTO user_badges 
+                    (user_id, guild_id, badge_id, badge_name, badge_emoji, badge_description)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (user_id, guild_id, badge_id, badge_name, badge_emoji, badge_description))
+                await db.commit()
+                return True
+            except:
+                return False
+    
+    async def get_user_badges(self, user_id: str, guild_id: str):
+        """Obtém badges de um utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT badge_id, badge_name, badge_emoji, badge_description, earned_at
+                FROM user_badges
+                WHERE user_id = ? AND guild_id = ?
+                ORDER BY earned_at DESC
+            """, (user_id, guild_id)) as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "name": row[1],
+                        "emoji": row[2],
+                        "description": row[3],
+                        "earned_at": row[4]
+                    }
+                    for row in rows
+                ]
+    
+    async def update_profile(self, user_id: str, guild_id: str, **kwargs):
+        """Atualiza perfil de utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            # Construir query dinamicamente
+            fields = []
+            values = []
+            for key, value in kwargs.items():
+                fields.append(f"{key} = ?")
+                values.append(value)
+            
+            if not fields:
+                return
+            
+            values.extend([user_id, guild_id])
+            
+            await db.execute(f"""
+                INSERT INTO user_profiles (user_id, guild_id, {', '.join(kwargs.keys())})
+                VALUES (?, ?, {', '.join(['?'] * len(kwargs))})
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP
+            """, values)
+            await db.commit()
+    
+    async def get_profile(self, user_id: str, guild_id: str):
+        """Obtém perfil de utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT bio, color, banner_url, favorite_game, birthday, pronouns,
+                       custom_field_1_name, custom_field_1_value,
+                       custom_field_2_name, custom_field_2_value
+                FROM user_profiles
+                WHERE user_id = ? AND guild_id = ?
+            """, (user_id, guild_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "bio": row[0],
+                        "color": row[1],
+                        "banner_url": row[2],
+                        "favorite_game": row[3],
+                        "birthday": row[4],
+                        "pronouns": row[5],
+                        "custom_field_1": {"name": row[6], "value": row[7]},
+                        "custom_field_2": {"name": row[8], "value": row[9]}
+                    }
+                return None
+    
+    async def create_marriage(self, guild_id: str, user1_id: str, user2_id: str):
+        """Cria casamento entre dois utilizadores"""
+        async with aiosqlite.connect(self.db_path) as db:
+            try:
+                await db.execute("""
+                    INSERT INTO marriages (guild_id, user1_id, user2_id)
+                    VALUES (?, ?, ?)
+                """, (guild_id, user1_id, user2_id))
+                await db.commit()
+                return True
+            except:
+                return False
+    
+    async def get_marriage(self, guild_id: str, user_id: str):
+        """Obtém casamento de um utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT user1_id, user2_id, married_at, ring_tier, anniversary_count
+                FROM marriages
+                WHERE guild_id = ? AND (user1_id = ? OR user2_id = ?) AND status = 'active'
+            """, (guild_id, user_id, user_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    partner_id = row[1] if row[0] == user_id else row[0]
+                    return {
+                        "partner_id": partner_id,
+                        "married_at": row[2],
+                        "ring_tier": row[3],
+                        "anniversary_count": row[4]
+                    }
+                return None
+    
+    async def divorce(self, guild_id: str, user_id: str):
+        """Remove casamento"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                UPDATE marriages SET status = 'divorced'
+                WHERE guild_id = ? AND (user1_id = ? OR user2_id = ?) AND status = 'active'
+            """, (guild_id, user_id, user_id))
+            await db.commit()
+    
+    async def log_activity(self, user_id: str, guild_id: str, activity_type: str, activity_data: str = None):
+        """Registra atividade de utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO activity_history (user_id, guild_id, activity_type, activity_data)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, guild_id, activity_type, activity_data))
+            await db.commit()
+    
+    async def get_activity_history(self, user_id: str, guild_id: str, limit: int = 50):
+        """Obtém histórico de atividade"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT activity_type, activity_data, timestamp
+                FROM activity_history
+                WHERE user_id = ? AND guild_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (user_id, guild_id, limit)) as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    {
+                        "type": row[0],
+                        "data": row[1],
+                        "timestamp": row[2]
+                    }
+                    for row in rows
+                ]
+    
+    async def update_streak(self, user_id: str, guild_id: str, streak_type: str, increment: bool = True):
+        """Atualiza streak de utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT current_streak, best_streak FROM user_streaks
+                WHERE user_id = ? AND guild_id = ? AND streak_type = ?
+            """, (user_id, guild_id, streak_type)) as cursor:
+                row = await cursor.fetchone()
+            
+            if row:
+                current = row[0] + 1 if increment else 0
+                best = max(row[1], current)
+                
+                await db.execute("""
+                    UPDATE user_streaks
+                    SET current_streak = ?, best_streak = ?, last_activity = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND guild_id = ? AND streak_type = ?
+                """, (current, best, user_id, guild_id, streak_type))
+            else:
+                await db.execute("""
+                    INSERT INTO user_streaks (user_id, guild_id, streak_type, current_streak, best_streak)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (user_id, guild_id, streak_type, 1 if increment else 0, 1 if increment else 0))
+            
+            await db.commit()
+    
+    async def get_streak(self, user_id: str, guild_id: str, streak_type: str):
+        """Obtém streak de utilizador"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT current_streak, best_streak, total_rewards
+                FROM user_streaks
+                WHERE user_id = ? AND guild_id = ? AND streak_type = ?
+            """, (user_id, guild_id, streak_type)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "current": row[0],
+                        "best": row[1],
+                        "total_rewards": row[2]
+                    }
+                return {"current": 0, "best": 0, "total_rewards": 0}
 
 
 # Instância global
@@ -586,3 +887,4 @@ async def get_database() -> Database:
         db_instance = Database()
         await db_instance.init_db()
     return db_instance
+

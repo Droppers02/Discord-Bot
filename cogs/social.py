@@ -18,11 +18,9 @@ class SocialCog(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.data_file = "data/social_data.json"
         self.welcome_file = "data/welcome_config.json"
         self.db = None  # Será inicializado em cog_load
-        self.ensure_data_files()
-        self.load_data()
+        self.ensure_welcome_file()
         self.load_welcome_config()
         
         # Cooldowns para XP e reputação
@@ -37,51 +35,13 @@ class SocialCog(commands.Cog):
         except Exception as e:
             self.bot.logger.error(f"Erro ao carregar database no social: {e}")
 
-    def ensure_data_files(self):
-        """Garantir que os arquivos de dados existem"""
+    def ensure_welcome_file(self):
+        """Garantir que o arquivo de welcome existe"""
         os.makedirs("data", exist_ok=True)
-        
-        if not os.path.exists(self.data_file):
-            with open(self.data_file, 'w', encoding='utf-8') as f:
-                json.dump({"users": {}, "guilds": {}}, f, indent=2)
         
         if not os.path.exists(self.welcome_file):
             with open(self.welcome_file, 'w', encoding='utf-8') as f:
                 json.dump({"guilds": {}}, f, indent=2)
-
-    def load_data(self):
-        """Carregar dados sociais"""
-        try:
-            with open(self.data_file, 'r', encoding='utf-8') as f:
-                self.social_data = json.load(f)
-        except:
-            self.social_data = {"users": {}, "guilds": {}}
-
-    def save_data(self):
-        """Salvar dados sociais com tratamento de erros"""
-        try:
-            # Criar backup antes de salvar
-            if os.path.exists(self.data_file):
-                backup_file = f"{self.data_file}.backup"
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    backup_data = f.read()
-                with open(backup_file, 'w', encoding='utf-8') as f:
-                    f.write(backup_data)
-            
-            # Salvar dados
-            with open(self.data_file, 'w', encoding='utf-8') as f:
-                json.dump(self.social_data, f, indent=2, ensure_ascii=False)
-                
-        except Exception as e:
-            self.bot.logger.error(f"Erro ao salvar dados sociais: {e}")
-            # Tentar restaurar do backup se falhou
-            if os.path.exists(f"{self.data_file}.backup"):
-                try:
-                    with open(f"{self.data_file}.backup", 'r', encoding='utf-8') as f:
-                        self.social_data = json.load(f)
-                    self.bot.logger.info("Dados sociais restaurados do backup")
-                except:
-                    pass
 
     def load_welcome_config(self):
         """Carregar configurações de boas-vindas"""
@@ -99,22 +59,6 @@ class SocialCog(commands.Cog):
         except Exception as e:
             self.bot.logger.error(f"Erro ao salvar config de boas-vindas: {e}")
 
-    def get_user_data(self, user_id: str, guild_id: str):
-        """Obter dados de um utilizador"""
-        if guild_id not in self.social_data["guilds"]:
-            self.social_data["guilds"][guild_id] = {}
-        
-        if user_id not in self.social_data["guilds"][guild_id]:
-            self.social_data["guilds"][guild_id][user_id] = {
-                "xp": 0,
-                "level": 1,
-                "reputation": 0,
-                "messages_sent": 0,
-                "last_message": 0
-            }
-        
-        return self.social_data["guilds"][guild_id][user_id]
-
     def calculate_level(self, xp: int) -> int:
         """Calcular nível baseado no XP"""
         return int((xp / 100) ** 0.5) + 1
@@ -125,8 +69,8 @@ class SocialCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        """Sistema de XP por mensagens"""
-        if message.author.bot or not message.guild:
+        """Sistema de XP por mensagens - agora com base de dados"""
+        if message.author.bot or not message.guild or not self.db:
             return
         
         user_id = str(message.author.id)
@@ -142,45 +86,64 @@ class SocialCog(commands.Cog):
         
         self.xp_cooldowns[cooldown_key] = now
         
-        # Dar XP
-        user_data = self.get_user_data(user_id, guild_id)
-        old_level = user_data["level"]
-        
-        # XP aleatório entre 15-25
-        xp_gain = random.randint(15, 25)
-        user_data["xp"] += xp_gain
-        user_data["messages_sent"] += 1
-        user_data["last_message"] = now
-        
-        # Calcular novo nível
-        new_level = self.calculate_level(user_data["xp"])
-        user_data["level"] = new_level
-        
-        # Se subiu de nível, enviar mensagem
-        if new_level > old_level:
-            # Verificar se já notificamos este level up (evitar duplicados)
-            levelup_key = f"{user_id}_{guild_id}_{new_level}"
+        try:
+            # Buscar XP/level atual da base de dados
+            level_data = await self.db.get_user_level(user_id, guild_id)
+            old_level = level_data["level"]
+            old_xp = level_data["xp"]
             
-            if levelup_key not in self.levelup_notified:
-                self.levelup_notified[levelup_key] = now
-                
-                embed = EmbedBuilder.level_up(
-                    user=message.author,
-                    level=new_level,
-                    xp=user_data['xp']
-                )
-                
-                try:
-                    await message.channel.send(embed=embed, delete_after=10)
-                except:
-                    pass
+            # XP aleatório entre 15-25
+            xp_gain = random.randint(15, 25)
+            new_xp = old_xp + xp_gain
             
-            # Limpar notificações antigas (mais de 5 minutos)
-            old_keys = [k for k, v in self.levelup_notified.items() if now - v > 300]
-            for k in old_keys:
-                del self.levelup_notified[k]
+            # Calcular novo nível
+            new_level = self.calculate_level(new_xp)
+            
+            # Atualizar na base de dados
+            await self.db.update_user_level(user_id, guild_id, new_xp, new_level)
+            
+            # Atualizar streak de mensagens (1 dia de streak)
+            await self.db.update_streak(user_id, guild_id, "messages", 1)
+            
+            # Se subiu de nível, enviar notificação
+            if new_level > old_level:
+                # Verificar se já notificamos este level up (evitar duplicados)
+                levelup_key = f"{user_id}_{guild_id}_{new_level}"
+                
+                if levelup_key not in self.levelup_notified:
+                    self.levelup_notified[levelup_key] = now
+                    
+                    embed = EmbedBuilder.level_up(
+                        user=message.author,
+                        level=new_level,
+                        xp=new_xp
+                    )
+                    
+                    try:
+                        await message.channel.send(embed=embed, delete_after=10)
+                    except:
+                        pass
+                    
+                    # Dar badge por marco de nível
+                    if new_level == 10:
+                        await self.db.add_badge(user_id, guild_id, "level_10", "Nível 10", "🔟", "Atingiu nível 10")
+                    elif new_level == 25:
+                        await self.db.add_badge(user_id, guild_id, "level_25", "Nível 25", "🎖️", "Atingiu nível 25")
+                    elif new_level == 50:
+                        await self.db.add_badge(user_id, guild_id, "level_50", "Nível 50", "⭐", "Atingiu nível 50")
+                    elif new_level == 100:
+                        await self.db.add_badge(user_id, guild_id, "level_100", "Nível 100", "👑", "Atingiu nível 100!")
+                    
+                    # Log de atividade
+                    await self.db.log_activity(user_id, guild_id, "level_up", f"Subiu para nível {new_level}")
+                
+                # Limpar notificações antigas (mais de 5 minutos)
+                old_keys = [k for k, v in self.levelup_notified.items() if now - v > 300]
+                for k in old_keys:
+                    del self.levelup_notified[k]
         
-        self.save_data()
+        except Exception as e:
+            self.bot.logger.error(f"Erro ao processar XP: {e}")
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -278,69 +241,94 @@ class SocialCog(commands.Cog):
     @app_commands.command(name="rank", description="Mostra o teu nível e XP")
     @app_commands.describe(utilizador="Utilizador para ver o rank (padrão: você)")
     async def rank(self, interaction: discord.Interaction, utilizador: Optional[discord.Member] = None):
-        """Mostra o rank/nível de um utilizador"""
+        """Mostra o rank/nível de um utilizador - agora com base de dados"""
         await interaction.response.defer()
         
         target = utilizador or interaction.user
-        user_data = self.get_user_data(str(target.id), str(interaction.guild.id))
+        user_id = str(target.id)
+        guild_id = str(interaction.guild.id)
         
-        level = user_data["level"]
-        current_xp = user_data["xp"]
-        xp_for_current = self.xp_for_level(level)
-        xp_for_next = self.xp_for_level(level + 1)
-        xp_progress = current_xp - xp_for_current
-        xp_needed = xp_for_next - xp_for_current
+        if not self.db:
+            await interaction.followup.send("❌ Base de dados não disponível!", ephemeral=True)
+            return
         
-        # Garantir que os valores são positivos
-        if xp_progress < 0:
-            xp_progress = 0
-        if xp_needed <= 0:
-            xp_needed = 1
+        try:
+            # Buscar dados da base de dados
+            level_data = await self.db.get_user_level(user_id, guild_id)
+            
+            level = level_data["level"]
+            current_xp = level_data["xp"]
+            xp_for_current = self.xp_for_level(level)
+            xp_for_next = self.xp_for_level(level + 1)
+            xp_progress = current_xp - xp_for_current
+            xp_needed = xp_for_next - xp_for_current
+            
+            # Garantir que os valores são positivos
+            if xp_progress < 0:
+                xp_progress = 0
+            if xp_needed <= 0:
+                xp_needed = 1
+            
+            # Barra de progresso
+            progress_bar_length = 20
+            filled = int((xp_progress / xp_needed) * progress_bar_length)
+            bar = "█" * filled + "░" * (progress_bar_length - filled)
+            
+            embed = discord.Embed(
+                title=f"📊 Rank de {target.display_name}",
+                color=target.color if target.color != discord.Color.default() else discord.Color.blue()
+            )
+            
+            embed.set_thumbnail(url=target.display_avatar.url)
+            
+            embed.add_field(
+                name="🏆 Nível",
+                value=f"**{level}**",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="✨ XP Total",
+                value=f"**{current_xp:,}**",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="✨ XP Total",
+                value=f"**{current_xp:,}**",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="📈 Reputação",
+                value=f"**{level_data.get('reputation', 0)}**",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="📊 Progresso para Nível" + str(level + 1),
+                value=f"{bar}\n{xp_progress:,}/{xp_needed:,} XP ({(xp_progress/xp_needed)*100:.1f}%)",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="💬 Mensagens Enviadas",
+                value=f"**{level_data.get('messages', 0):,}**",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="💬 Mensagens Enviadas",
+                value=f"**{messages:,}**",
+                inline=True
+            )
+            
+            embed.set_footer(text=f"Solicitado por {interaction.user.display_name}")
+            await interaction.followup.send(embed=embed)
         
-        # Barra de progresso
-        progress_bar_length = 20
-        filled = int((xp_progress / xp_needed) * progress_bar_length)
-        bar = "█" * filled + "░" * (progress_bar_length - filled)
-        
-        embed = discord.Embed(
-            title=f"📊 Rank de {target.display_name}",
-            color=target.color if target.color != discord.Color.default() else discord.Color.blue()
-        )
-        
-        embed.set_thumbnail(url=target.display_avatar.url)
-        
-        embed.add_field(
-            name="🏆 Nível",
-            value=f"**{level}**",
-            inline=True
-        )
-        
-        embed.add_field(
-            name="✨ XP Total",
-            value=f"**{current_xp:,}**",
-            inline=True
-        )
-        
-        embed.add_field(
-            name="📈 Reputação",
-            value=f"**{user_data['reputation']}**",
-            inline=True
-        )
-        
-        embed.add_field(
-            name="📊 Progresso para Nível " + str(level + 1),
-            value=f"{bar}\n{xp_progress:,}/{xp_needed:,} XP ({(xp_progress/xp_needed)*100:.1f}%)",
-            inline=False
-        )
-        
-        embed.add_field(
-            name="💬 Mensagens Enviadas",
-            value=f"**{user_data['messages_sent']:,}**",
-            inline=True
-        )
-        
-        embed.set_footer(text=f"Solicitado por {interaction.user.display_name}")
-        await interaction.followup.send(embed=embed)
+        except Exception as e:
+            self.bot.logger.error(f"Erro ao buscar rank: {e}")
+            await interaction.followup.send("❌ Erro ao buscar rank!", ephemeral=True)
 
     @app_commands.command(name="like", description="Dá um like/reputação a um utilizador")
     @app_commands.describe(utilizador="Utilizador para dar like")
@@ -371,24 +359,42 @@ class SocialCog(commands.Cog):
         
         self.rep_cooldowns[cooldown_key] = now
         
-        # Dar reputação
-        user_data = self.get_user_data(str(utilizador.id), str(interaction.guild.id))
-        user_data["reputation"] += 1
-        self.save_data()
+        # Dar reputação (via base de dados)
+        if not self.db:
+            await interaction.response.send_message("❌ Base de dados não disponível!", ephemeral=True)
+            return
         
-        embed = discord.Embed(
-            title="👍 Like Dado!",
-            description=f"{interaction.user.mention} deu like a {utilizador.mention}!",
-            color=discord.Color.green()
-        )
-        
-        embed.add_field(
-            name="✨ Nova Reputação",
-            value=f"**{user_data['reputation']}** likes",
-            inline=True
-        )
-        
-        await interaction.response.send_message(embed=embed)
+        try:
+            # Incrementar reputação
+            await self.db.execute(
+                """INSERT INTO user_levels (user_id, guild_id, reputation, xp, level)
+                   VALUES (?, ?, 1, 0, 1)
+                   ON CONFLICT(user_id, guild_id) 
+                   DO UPDATE SET reputation = reputation + 1""",
+                (str(utilizador.id), str(interaction.guild.id))
+            )
+            await self.db.commit()
+            
+            # Buscar nova reputação
+            level_data = await self.db.get_user_level(str(utilizador.id), str(interaction.guild.id))
+            reputation = level_data.get("reputation", 1)
+            
+            embed = discord.Embed(
+                title="👍 Like Dado!",
+                description=f"{interaction.user.mention} deu like a {utilizador.mention}!",
+                color=discord.Color.green()
+            )
+            
+            embed.add_field(
+                name="✨ Nova Reputação",
+                value=f"**{reputation}** likes",
+                inline=True
+            )
+            
+            await interaction.response.send_message(embed=embed)
+        except Exception as e:
+            self.bot.logger.error(f"Erro ao dar like: {e}")
+            await interaction.response.send_message("❌ Erro ao dar like!", ephemeral=True)
 
     @app_commands.command(name="leaderboard", description="Mostra o ranking do servidor")
     @app_commands.describe(tipo="Tipo de ranking (xp ou reputacao)")
@@ -397,57 +403,72 @@ class SocialCog(commands.Cog):
         app_commands.Choice(name="Reputação", value="reputation")
     ])
     async def leaderboard(self, interaction: discord.Interaction, tipo: str = "xp"):
-        """Mostra o ranking do servidor"""
+        """Mostra o ranking do servidor - agora com base de dados"""
+        await interaction.response.defer()
+        
         guild_id = str(interaction.guild.id)
         
-        if guild_id not in self.social_data["guilds"]:
-            await interaction.response.send_message("❌ Ainda não há dados de ranking neste servidor!", ephemeral=True)
+        if not self.db:
+            await interaction.followup.send("❌ Base de dados não disponível!", ephemeral=True)
             return
         
-        users_data = self.social_data["guilds"][guild_id]
-        
-        # Ordenar utilizadores
-        if tipo == "xp":
-            sorted_users = sorted(users_data.items(), key=lambda x: x[1]["xp"], reverse=True)
-            title = "🏆 Ranking por XP/Nível"
-            icon = "✨"
-        else:
-            sorted_users = sorted(users_data.items(), key=lambda x: x[1]["reputation"], reverse=True)
-            title = "👍 Ranking por Reputação"
-            icon = "💖"
-        
-        embed = discord.Embed(
-            title=title,
-            color=discord.Color.gold(),
-            timestamp=datetime.utcnow()
-        )
-        
-        # Top 10
-        leaderboard_text = ""
-        for i, (user_id, data) in enumerate(sorted_users[:10], 1):
-            try:
-                user = interaction.guild.get_member(int(user_id))
-                if not user:
+        try:
+            # Buscar dados da base de dados
+            if tipo == "xp":
+                query = """SELECT user_id, xp, level 
+                          FROM user_levels 
+                          WHERE guild_id = ? 
+                          ORDER BY xp DESC 
+                          LIMIT 10"""
+                title = "🏆 Ranking por XP/Nível"
+            else:
+                query = """SELECT user_id, reputation, level 
+                          FROM user_levels 
+                          WHERE guild_id = ? AND reputation > 0
+                          ORDER BY reputation DESC 
+                          LIMIT 10"""
+                title = "👍 Ranking por Reputação"
+            
+            async with self.db.execute(query, (guild_id,)) as cursor:
+                rows = await cursor.fetchall()
+            
+            embed = discord.Embed(
+                title=title,
+                color=discord.Color.gold(),
+                timestamp=datetime.utcnow()
+            )
+            
+            # Top 10
+            leaderboard_text = ""
+            for i, row in enumerate(rows, 1):
+                try:
+                    user_id = row[0]
+                    user = interaction.guild.get_member(int(user_id))
+                    if not user:
+                        continue
+                    
+                    if tipo == "xp":
+                        value = f"Nível {row[2]} ({row[1]:,} XP)"
+                    else:
+                        value = f"{row[1]} likes"
+                    
+                    medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"**{i}.**"
+                    leaderboard_text += f"{medal} {user.display_name}: {value}\n"
+                    
+                except:
                     continue
-                
-                if tipo == "xp":
-                    value = f"Nível {data['level']} ({data['xp']:,} XP)"
-                else:
-                    value = f"{data['reputation']} likes"
-                
-                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"**{i}.**"
-                leaderboard_text += f"{medal} {user.display_name}: {value}\n"
-                
-            except:
-                continue
+            
+            if not leaderboard_text:
+                leaderboard_text = "Nenhum dado encontrado!"
+            
+            embed.description = leaderboard_text
+            embed.set_footer(text=f"Solicitado por {interaction.user.display_name}")
+            
+            await interaction.followup.send(embed=embed)
         
-        if not leaderboard_text:
-            leaderboard_text = "Nenhum dado encontrado!"
-        
-        embed.description = leaderboard_text
-        embed.set_footer(text=f"Solicitado por {interaction.user.display_name}")
-        
-        await interaction.response.send_message(embed=embed)
+        except Exception as e:
+            self.bot.logger.error(f"Erro ao buscar leaderboard: {e}")
+            await interaction.followup.send("❌ Erro ao buscar ranking!", ephemeral=True)
 
     @app_commands.command(name="welcome_config", description="[ADMIN] Configura mensagens de boas-vindas")
     @app_commands.describe(
@@ -549,8 +570,202 @@ class SocialCog(commands.Cog):
         embed.add_field(name="Status Atual", value=status_text, inline=False)
         
         await interaction.response.send_message(embed=embed)
+    
+    # ===== SISTEMA DE PERFIS CUSTOMIZÁVEIS =====
+    
+    @app_commands.command(name="perfil", description="Ver perfil de um utilizador")
+    @app_commands.describe(utilizador="Utilizador para ver perfil (opcional)")
+    async def profile(self, interaction: discord.Interaction, utilizador: Optional[discord.Member] = None):
+        """Ver perfil completo de utilizador"""
+        target = utilizador or interaction.user
+        user_id = str(target.id)
+        guild_id = str(interaction.guild.id)
+        
+        await interaction.response.defer()
+        
+        if not self.db:
+            await interaction.followup.send("❌ Base de dados não disponível!", ephemeral=True)
+            return
+        
+        # Dados de XP/Level da base de dados
+        level_data = await self.db.get_user_level(user_id, guild_id)
+        
+        # Dados do perfil customizado
+        profile = await self.db.get_profile(user_id, guild_id)
+        
+        # Badges
+        badges = await self.db.get_user_badges(user_id, guild_id)
+        
+        # Marriage
+        marriage = await self.db.get_marriage(guild_id, user_id)
+        
+        # Criar embed
+        color = int(profile["color"].replace("#", ""), 16) if profile and profile.get("color") else 0x5865F2
+        embed = discord.Embed(
+            title=f"👤 Perfil de {target.display_name}",
+            color=discord.Color(color)
+        )
+        
+        # Banner
+        if profile and profile.get("banner_url"):
+            embed.set_image(url=profile["banner_url"])
+        
+        embed.set_thumbnail(url=target.display_avatar.url)
+        
+        # Bio
+        if profile and profile.get("bio"):
+            embed.description = f"*{profile['bio']}*"
+        
+        # Stats básicos (usando base de dados)
+        embed.add_field(
+            name="📊 Estatísticas",
+            value=f"**Level:** {level_data['level']}\n"
+                  f"**XP:** {level_data['xp']}\n"
+                  f"**Reputação:** {level_data.get('reputation', 0)}\n"
+                  f"**Mensagens:** {level_data.get('messages', 0)}",
+            inline=True
+        )
+        
+        # Info adicional
+        info_text = ""
+        if profile:
+            if profile.get("pronouns"):
+                info_text += f"**Pronomes:** {profile['pronouns']}\n"
+            if profile.get("birthday"):
+                info_text += f"**Aniversário:** {profile['birthday']}\n"
+            if profile.get("favorite_game"):
+                info_text += f"**Jogo Favorito:** {profile['favorite_game']}\n"
+        
+        if marriage:
+            partner = interaction.guild.get_member(int(marriage["partner_id"]))
+            if partner:
+                ring_emoji = "💎" if marriage.get("ring_tier") == 3 else "💍"
+                info_text += f"{ring_emoji} **Casado(a) com:** {partner.mention}\n"
+        
+        if info_text:
+            embed.add_field(name="ℹ️ Informações", value=info_text, inline=True)
+        
+        # Badges
+        if badges:
+            badge_text = " ".join([f"{b['emoji']} {b['name']}" for b in badges[:5]])
+            if len(badges) > 5:
+                badge_text += f" +{len(badges)-5}"
+            embed.add_field(name=f"🏅 Badges ({len(badges)})", value=badge_text, inline=False)
+        
+        # Campos customizados
+        if profile:
+            if profile.get("custom_field_1") and profile["custom_field_1"]["name"]:
+                embed.add_field(
+                    name=profile["custom_field_1"]["name"],
+                    value=profile["custom_field_1"]["value"],
+                    inline=True
+                )
+            if profile.get("custom_field_2") and profile["custom_field_2"]["name"]:
+                embed.add_field(
+                    name=profile["custom_field_2"]["name"],
+                    value=profile["custom_field_2"]["value"],
+                    inline=True
+                )
+        
+        embed.set_footer(text=f"Membro desde {target.joined_at.strftime('%d/%m/%Y')}")
+        
+        await interaction.followup.send(embed=embed)
+    
+    @app_commands.command(name="editarperfil", description="Editar o teu perfil")
+    async def edit_profile(self, interaction: discord.Interaction):
+        """Editar perfil usando modal"""
+        
+        class ProfileModal(discord.ui.Modal, title="Editar Perfil"):
+            bio = discord.ui.TextInput(
+                label="Bio",
+                placeholder="Escreve algo sobre ti...",
+                style=discord.TextStyle.paragraph,
+                required=False,
+                max_length=200
+            )
+            
+            pronouns = discord.ui.TextInput(
+                label="Pronomes",
+                placeholder="ele/dele, ela/dela, etc.",
+                required=False,
+                max_length=30
+            )
+            
+            birthday = discord.ui.TextInput(
+                label="Aniversário",
+                placeholder="DD/MM",
+                required=False,
+                max_length=5
+            )
+            
+            favorite_game = discord.ui.TextInput(
+                label="Jogo Favorito",
+                placeholder="Qual é o teu jogo favorito?",
+                required=False,
+                max_length=50
+            )
+            
+            async def on_submit(modal_self, interaction: discord.Interaction):
+                user_id = str(interaction.user.id)
+                guild_id = str(interaction.guild.id)
+                
+                db = await get_database()
+                await db.update_profile(
+                    user_id, guild_id,
+                    bio=modal_self.bio.value,
+                    pronouns=modal_self.pronouns.value,
+                    birthday=modal_self.birthday.value,
+                    favorite_game=modal_self.favorite_game.value
+                )
+                
+                await interaction.response.send_message(
+                    "✅ Perfil atualizado com sucesso!",
+                    ephemeral=True
+                )
+        
+        await interaction.response.send_modal(ProfileModal())
+    
+    @app_commands.command(name="badges", description="Ver badges de um utilizador")
+    @app_commands.describe(utilizador="Utilizador para ver badges (opcional)")
+    async def view_badges(self, interaction: discord.Interaction, utilizador: Optional[discord.Member] = None):
+        """Ver todas as badges de um utilizador"""
+        target = utilizador or interaction.user
+        user_id = str(target.id)
+        guild_id = str(interaction.guild.id)
+        
+        if not self.db:
+            await interaction.response.send_message("❌ Database não disponível!", ephemeral=True)
+            return
+        
+        badges = await self.db.get_user_badges(user_id, guild_id)
+        
+        if not badges:
+            await interaction.response.send_message(
+                f"{'Tu não tens' if target == interaction.user else f'{target.display_name} não tem'} badges ainda!",
+                ephemeral=True
+            )
+            return
+        
+        embed = discord.Embed(
+            title=f"🏅 Badges de {target.display_name}",
+            description=f"Total: {len(badges)} badge(s)",
+            color=discord.Color.gold()
+        )
+        
+        embed.set_thumbnail(url=target.display_avatar.url)
+        
+        for badge in badges:
+            date = datetime.fromisoformat(badge["earned_at"]).strftime("%d/%m/%Y")
+            embed.add_field(
+                name=f"{badge['emoji']} {badge['name']}",
+                value=f"{badge['description']}\n*Obtida em: {date}*",
+                inline=False
+            )
+        
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot):
     """Função para carregar o cog"""
     await bot.add_cog(SocialCog(bot))
+

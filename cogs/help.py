@@ -124,11 +124,18 @@ class HelpCog(commands.Cog):
         embed2.add_field(name="💰 **Economia**", value="\n".join(economy_commands), inline=False)
         
         social_commands = [
-            "• `/rank [user]` - Ver nível e XP",
-            "• `/rep <user>` - Dar reputação",
-            "• `/top` - Top do servidor"
+            "• `/rank [user]` - Ver nível, XP e progresso",
+            "• `/like <user>` - Dar reputação (1h cooldown)",
+            "• `/leaderboard [tipo]` - Rankings (XP/Reputação)",
+            "• `/perfil [user]` - Ver perfil completo",
+            "• `/editarperfil` - Customizar perfil",
+            "• `/badges [user]` - Ver badges conquistados",
+            "• `/casar <user>` - Pedir em casamento",
+            "• `/divorcio` - Divorciar-se",
+            "• `/historico [user]` - Ver atividades",
+            "• `/streaks` - Ver streaks (Daily/Mensagens/Jogos)"
         ]
-        embed2.add_field(name="⭐ **Social**", value="\n".join(social_commands), inline=False)
+        embed2.add_field(name="⭐ **Social Avançado**", value="\n".join(social_commands), inline=False)
         
         embed2.set_footer(text="Página 2/5 • Use os botões para navegar")
         embeds.append(embed2)

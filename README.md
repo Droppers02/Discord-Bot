@@ -32,7 +32,7 @@ Bot Discord completo com sistema de economia, jogos, música, moderação, ticke
 - **💰 Economia** - Sistema completo com moedas, itens, loja e inventário
 - **🎲 Jogos** - Jogos interativos (blackjack, slots, crash, coinflip, etc.)
 - **🎵 Música** - Player de música com fila e controles
-- **⭐ Social** - Sistema de XP, níveis, reputação e leaderboards
+- **⭐ Social Avançado** - XP, níveis, perfis customizáveis, badges, casamentos, streaks e histórico
 - **🎫 Tickets** - Sistema profissional de suporte com categorias e gestão
 - **🛡️ Moderação** - Sistema avançado com logs, filtro de palavras, quarentena, appeals e timeout presets
 - **📊 Monitoramento** - Status do bot, servidor e utilizadores
@@ -478,13 +478,66 @@ https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=8&scope
 /volume <0-100>          - Ajustar volume
 ```
 
-### ⭐ Social
+### ⭐ Sistema Social Avançado
+
+O bot possui um sistema social completo com XP, níveis, perfis customizáveis, badges, casamentos e histórico de atividades.
+
+**Comandos Básicos:**
 
 ```
-/rank [@user]            - Ver nível e XP
-/rep <@user>             - Dar reputação
-/top                     - Top do servidor
+/rank [@user]            - Ver nível, XP e progresso
+/like <@user>            - Dar reputação (cooldown: 1h)
+/leaderboard [tipo]      - Rankings (XP ou Reputação)
 ```
+
+**Sistema de Perfis:**
+
+```
+/perfil [@user]          - Ver perfil completo com badges e casamento
+/editarperfil            - Customizar bio, pronomes, aniversário, jogo favorito
+/badges [@user]          - Ver todos os badges conquistados
+```
+
+**Perfis incluem:**
+- 📊 Estatísticas (Level, XP, Reputação, Mensagens)
+- 🎨 Customização (Bio, Cor do embed, Banner, Pronomes)
+- 🏅 Badges conquistados
+- 💍 Status de casamento
+- 🎮 2 campos personalizados
+
+**Sistema de Casamento:**
+
+```
+/casar <@user>           - Pedir utilizador em casamento
+/divorcio                - Divorciar-se (requer confirmação)
+```
+
+- Propostas interativas com botões aceitar/recusar
+- Badge 💍 automático ao casar
+- Exibição de parceiro no perfil
+- Sistema de ring tiers (💍/💎)
+
+**Histórico e Streaks:**
+
+```
+/historico [@user]       - Ver últimas 20 atividades
+/streaks                 - Ver streaks (Daily, Mensagens, Jogos)
+/top_categoria [cat]     - Top por Level, Mensagens, Reputação, Badges, Streak
+```
+
+**Badges Automáticos:**
+- 🔟 Nível 10
+- 🎖️ Nível 25  
+- ⭐ Nível 50
+- 👑 Nível 100
+- 💍 Casamento
+
+**Sistema de XP:**
+- 15-25 XP por mensagem (cooldown: 60s)
+- Cálculo: Level = ⌊√(XP/100)⌋ + 1
+- Notificações automáticas de level up
+- Streaks de mensagens registados
+- Tudo armazenado em SQLite
 
 ### 🎫 Tickets
 
@@ -612,7 +665,8 @@ EPA-BOT/
 │   ├── games.py        # Jogos básicos
 │   ├── games_extra.py  # Jogos extras
 │   ├── music.py        # Player de música
-│   ├── social.py       # Sistema social
+│   ├── social.py       # Sistema social (XP, perfis, badges)
+│   ├── social_advanced.py  # Social avançado (casamento, streaks, histórico)
 │   ├── tickets.py      # Sistema de tickets
 │   ├── moderation.py   # Moderação
 │   ├── monitoring.py   # Monitoramento
