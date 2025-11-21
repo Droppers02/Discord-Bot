@@ -9,155 +9,6 @@ from typing import Optional
 from utils.database import get_database
 
 
-class HangmanView(discord.ui.View):
-    """View para o jogo da forca com botões de letras"""
-    
-    def __init__(self, word: str, hint: str, user_id: int, cog):
-        super().__init__(timeout=300)
-        self.word = word.upper()
-        self.hint = hint
-        self.user_id = user_id
-        self.cog = cog
-        self.guessed_letters = set()
-        self.wrong_guesses = 0
-        self.max_wrong = 6
-        
-        # Adicionar botões de letras (A-Z)
-        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        for i, letter in enumerate(alphabet):
-            button = discord.ui.Button(
-                label=letter,
-                style=discord.ButtonStyle.primary,
-                custom_id=f"hangman_{letter}",
-                row=i // 5  # 5 botões por linha
-            )
-            button.callback = self.make_guess_callback(letter)
-            self.add_item(button)
-    
-    def make_guess_callback(self, letter: str):
-        """Cria callback para botão de letra"""
-        async def callback(interaction: discord.Interaction):
-            if interaction.user.id != self.user_id:
-                return await interaction.response.send_message(
-                    "❌ Este não é o teu jogo!", ephemeral=True
-                )
-            
-            # Adicionar letra às adivinhadas
-            self.guessed_letters.add(letter)
-            
-            # Verificar se acertou
-            if letter not in self.word:
-                self.wrong_guesses += 1
-            
-            # Desabilitar botão
-            for item in self.children:
-                if isinstance(item, discord.ui.Button) and item.label == letter:
-                    item.disabled = True
-                    item.style = discord.ButtonStyle.success if letter in self.word else discord.ButtonStyle.danger
-                    break
-            
-            # Verificar vitória/derrota
-            if all(l in self.guessed_letters for l in self.word):
-                return await self.end_game(interaction, won=True)
-            
-            if self.wrong_guesses >= self.max_wrong:
-                return await self.end_game(interaction, won=False)
-            
-            # Atualizar embed
-            embed = self.create_embed()
-            await interaction.response.edit_message(embed=embed, view=self)
-        
-        return callback
-    
-    def create_embed(self) -> discord.Embed:
-        """Criar embed do jogo"""
-        # Palavra com letras adivinhadas
-        display_word = " ".join([l if l in self.guessed_letters else "_" for l in self.word])
-        
-        # Desenhos da forca
-        hangman_stages = [
-            "```\n  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========```",
-            "```\n  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========```",
-            "```\n  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========```",
-            "```\n  +---+\n  |   |\n  O   |\n /|   |\n      |\n      |\n=========```",
-            "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n      |\n=========```",
-            "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========```",
-            "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n=========```"
-        ]
-        
-        embed = discord.Embed(
-            title="🎪 Jogo da Forca",
-            color=discord.Color.blue()
-        )
-        
-        embed.add_field(name="💡 Dica:", value=self.hint, inline=False)
-        embed.add_field(name="📝 Palavra:", value=f"**{display_word}**", inline=False)
-        embed.add_field(name="🎨 Forca:", value=hangman_stages[self.wrong_guesses], inline=False)
-        embed.add_field(
-            name="❌ Erros:", 
-            value=f"{self.wrong_guesses}/{self.max_wrong}",
-            inline=True
-        )
-        
-        if self.guessed_letters:
-            wrong_letters = [l for l in self.guessed_letters if l not in self.word]
-            if wrong_letters:
-                embed.add_field(
-                    name="🚫 Letras Erradas:",
-                    value=" ".join(sorted(wrong_letters)),
-                    inline=True
-                )
-        
-        embed.set_footer(text="Clica nas letras para adivinhar • Timeout: 5 minutos")
-        
-        return embed
-    
-    async def end_game(self, interaction: discord.Interaction, won: bool):
-        """Terminar jogo"""
-        for item in self.children:
-            item.disabled = True
-        
-        if won:
-            embed = discord.Embed(
-                title="🎉 Vitória!",
-                description=f"Parabéns! Adivinhaste a palavra: **{self.word}**",
-                color=discord.Color.green()
-            )
-            
-            # Recompensa
-            reward = 100
-            try:
-                economy_cog = self.cog.bot.get_cog("SimpleEconomy")
-                if economy_cog:
-                    economy_cog.add_money(str(self.user_id), reward)
-                    embed.add_field(name="💰 Recompensa", value=f"{reward} EPA Coins!", inline=False)
-            except:
-                pass
-        else:
-            embed = discord.Embed(
-                title="💀 Derrota!",
-                description=f"A palavra era: **{self.word}**\n\n💡 Dica: {self.hint}",
-                color=discord.Color.red()
-            )
-        
-        embed.add_field(
-            name="📊 Estatísticas:",
-            value=f"Erros: {self.wrong_guesses}/{self.max_wrong}\nLetras tentadas: {len(self.guessed_letters)}",
-            inline=False
-        )
-        
-        await interaction.response.edit_message(embed=embed, view=self)
-        
-        # Remover do active_games
-        if self.user_id in self.cog.active_games:
-            del self.cog.active_games[self.user_id]
-    
-    async def on_timeout(self):
-        """Timeout do jogo"""
-        if self.user_id in self.cog.active_games:
-            del self.cog.active_games[self.user_id]
-
-
 class GamesExtraCog(commands.Cog):
     """Cog para jogos adicionais e diversão"""
     
@@ -310,9 +161,9 @@ class GamesExtraCog(commands.Cog):
             if user_id in self.active_games:
                 del self.active_games[user_id]
 
-    @app_commands.command(name="forca", description="Jogo da forca melhorado")
+    @app_commands.command(name="forca", description="Jogo da forca")
     async def forca(self, interaction: discord.Interaction):
-        """Jogo da forca com interface de botões"""
+        """Jogo da forca com deteção de mensagens"""
         
         user_id = interaction.user.id
         
@@ -322,35 +173,90 @@ class GamesExtraCog(commands.Cog):
         # Escolher palavra com dica
         word_data = random.choice(self.forca_words)
         word, hint = word_data
-        
-        # Criar view com botões de letras
-        view = HangmanView(word, hint, user_id, self)
-        
-        # Criar embed inicial
-        embed = view.create_embed()
+        word = word.upper()
         
         # Guardar jogo
         self.active_games[user_id] = {
             "type": "forca",
             "word": word,
-            "view": view
+            "hint": hint,
+            "guessed": set(),
+            "wrong": 0,
+            "max_wrong": 6,
+            "channel_id": interaction.channel_id
         }
         
-        await interaction.response.send_message(embed=embed, view=view)
-
-    async def _show_forca_status(self, interaction, user_id, first_time=False):
-        """Mostrar status do jogo da forca"""
+        # Criar embed inicial
+        embed = await self._create_forca_embed(user_id)
+        await interaction.response.send_message(embed=embed)
+        
+        # Aguardar respostas do utilizador
+        def check(m):
+            return m.author.id == user_id and m.channel.id == interaction.channel_id and len(m.content) == 1 and m.content.isalpha()
+        
+        while user_id in self.active_games:
+            try:
+                msg = await self.bot.wait_for('message', timeout=180.0, check=check)
+                
+                game = self.active_games.get(user_id)
+                if not game:
+                    break
+                
+                letter = msg.content.upper()
+                
+                # Verificar se já foi tentada
+                if letter in game["guessed"]:
+                    await interaction.channel.send(f"❌ {interaction.user.mention} Já tentaste a letra **{letter}**!", delete_after=3)
+                    continue
+                
+                # Adicionar letra
+                game["guessed"].add(letter)
+                
+                # Verificar se acertou
+                if letter not in game["word"]:
+                    game["wrong"] += 1
+                    await interaction.channel.send(f"❌ A letra **{letter}** não está na palavra!", delete_after=3)
+                else:
+                    await interaction.channel.send(f"✅ A letra **{letter}** está na palavra!", delete_after=3)
+                
+                # Verificar vitória
+                if all(l in game["guessed"] for l in game["word"]):
+                    await self._end_forca_game(interaction, user_id, won=True)
+                    break
+                
+                # Verificar derrota
+                if game["wrong"] >= game["max_wrong"]:
+                    await self._end_forca_game(interaction, user_id, won=False)
+                    break
+                
+                # Atualizar embed
+                embed = await self._create_forca_embed(user_id)
+                await interaction.channel.send(embed=embed, delete_after=180)
+                
+            except asyncio.TimeoutError:
+                if user_id in self.active_games:
+                    timeout_embed = discord.Embed(
+                        title="⏰ Tempo Esgotado!",
+                        description=f"O jogo da forca terminou por inatividade.\nA palavra era: **{self.active_games[user_id]['word']}**",
+                        color=discord.Color.orange()
+                    )
+                    await interaction.channel.send(embed=timeout_embed)
+                    del self.active_games[user_id]
+                break
+    
+    async def _create_forca_embed(self, user_id: int) -> discord.Embed:
+        """Criar embed do jogo da forca"""
         game = self.active_games[user_id]
         word = game["word"]
         guessed = game["guessed"]
         wrong = game["wrong"]
-        max_wrong = game["max_wrong"]
+        hint = game["hint"]
         
         # Palavra com letras adivinhadas
-        display_word = " ".join([letter if letter in guessed else "_" for letter in word])
+        display_word = " ".join([l if l in guessed else "_" for l in word])
         
-        # Desenho da forca
-        forca_stages = [
+        # Desenhos da forca
+        hangman_stages = [
             "```\n  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========```",
             "```\n  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========```",
             "```\n  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========```",
@@ -365,51 +271,61 @@ class GamesExtraCog(commands.Cog):
             color=discord.Color.blue()
         )
         
-        embed.add_field(name="Palavra:", value=f"**{display_word}**", inline=False)
-        embed.add_field(name="Forca:", value=forca_stages[wrong], inline=False)
+        embed.add_field(name="💡 Dica:", value=hint, inline=False)
+        embed.add_field(name="📝 Palavra:", value=f"**{display_word}**", inline=False)
+        embed.add_field(name="🎨 Forca:", value=hangman_stages[wrong], inline=False)
+        embed.add_field(name="❌ Erros:", value=f"{wrong}/{game['max_wrong']}", inline=True)
         
         if guessed:
-            embed.add_field(
-                name="Letras tentadas:", 
-                value=" ".join(sorted(guessed)), 
-                inline=False
+            wrong_letters = [l for l in guessed if l not in word]
+            if wrong_letters:
+                embed.add_field(name="🚫 Letras Erradas:", value=" ".join(sorted(wrong_letters)), inline=True)
+        
+        embed.set_footer(text="Escreve uma letra para adivinhar • Timeout: 3 minutos")
+        
+        return embed
+    
+    async def _end_forca_game(self, interaction: discord.Interaction, user_id: int, won: bool):
+        """Terminar jogo da forca"""
+        game = self.active_games.get(user_id)
+        if not game:
+            return
+        
+        word = game["word"]
+        
+        if won:
+            embed = discord.Embed(
+                title="🎉 Vitória!",
+                description=f"Parabéns {interaction.user.mention}! Adivinhaste a palavra: **{word}**",
+                color=discord.Color.green()
             )
-        
-        embed.add_field(
-            name="Erros:", 
-            value=f"{wrong}/{max_wrong}", 
-            inline=True
-        )
-        
-        # Verificar vitória/derrota
-        if all(letter in guessed for letter in word):
-            embed.title = "🎉 Vitória!"
-            embed.color = discord.Color.green()
-            embed.add_field(name="Resultado:", value="Parabéns! Adivinhaste a palavra!", inline=False)
             
             # Recompensa
+            reward = 100
             try:
                 economy_cog = self.bot.get_cog("SimpleEconomy")
                 if economy_cog:
-                    economy_cog.add_money(str(user_id), 75)
-                    embed.add_field(name="💰 Recompensa", value="75 EPA Coins!", inline=False)
+                    economy_cog.add_money(str(user_id), reward)
+                    embed.add_field(name="💰 Recompensa", value=f"{reward} EPA Coins!", inline=False)
             except:
                 pass
-            
-            del self.active_games[user_id]
-            
-        elif wrong >= max_wrong:
-            embed.title = "💀 Derrota!"
-            embed.color = discord.Color.red()
-            embed.add_field(name="Resultado:", value=f"A palavra era: **{word}**", inline=False)
-            del self.active_games[user_id]
         else:
-            embed.set_footer(text="Digite uma letra para continuar! (ou 'desistir' para parar)")
+            embed = discord.Embed(
+                title="💀 Derrota!",
+                description=f"A palavra era: **{word}**\n\n💡 Dica: {game['hint']}",
+                color=discord.Color.red()
+            )
         
-        if first_time:
-            await interaction.response.send_message(embed=embed)
-        else:
-            await interaction.edit_original_response(embed=embed)
+        embed.add_field(
+            name="📊 Estatísticas:",
+            value=f"Erros: {game['wrong']}/{game['max_wrong']}\nLetras tentadas: {len(game['guessed'])}",
+            inline=False
+        )
+        
+        await interaction.channel.send(embed=embed)
+        
+        # Remover jogo
+        del self.active_games[user_id]
 
     @app_commands.command(name="blackjack", description="Jogo de Blackjack")
     @app_commands.describe(aposta="Quantia a apostar (mínimo 10)")
@@ -666,71 +582,6 @@ class GamesExtraCog(commands.Cog):
         
         embed.set_footer(text=f"Solicitado por {interaction.user.display_name}")
         await interaction.followup.send(embed=embed)
-
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        """Listener para jogos que requerem input de texto"""
-        if message.author.bot:
-            return
-        
-        user_id = message.author.id
-        
-        if user_id not in self.active_games:
-            return
-        
-        game = self.active_games[user_id]
-        
-        if game["type"] == "forca":
-            content = message.content.upper().strip()
-            
-            if content == "DESISTIR":
-                embed = discord.Embed(
-                    title="🏳️ Desistência",
-                    description=f"Desististe! A palavra era: **{game['word']}**",
-                    color=discord.Color.orange()
-                )
-                await message.channel.send(embed=embed)
-                del self.active_games[user_id]
-                return
-            
-            if len(content) == 1 and content.isalpha():
-                letter = content
-                
-                if letter in game["guessed"]:
-                    await message.channel.send(f"❌ Já tentaste a letra **{letter}**!", delete_after=3)
-                    return
-                
-                game["guessed"].add(letter)
-                
-                if letter in game["word"]:
-                    await message.channel.send(f"✅ A letra **{letter}** está na palavra!", delete_after=3)
-                else:
-                    game["wrong"] += 1
-                    await message.channel.send(f"❌ A letra **{letter}** não está na palavra!", delete_after=3)
-                
-                # Criar uma interação fake para mostrar status
-                class FakeInteraction:
-                    def __init__(self, original_message):
-                        self.user = original_message.author
-                        self.channel = original_message.channel
-                        self.guild = original_message.guild
-                    
-                    async def edit_original_response(self, **kwargs):
-                        # Encontrar a mensagem original do jogo e editá-la
-                        async for msg in self.channel.history(limit=50):
-                            if (msg.author == self.channel.guild.me and 
-                                msg.embeds and 
-                                "Jogo da Forca" in msg.embeds[0].title):
-                                await msg.edit(**kwargs)
-                                break
-                
-                fake_interaction = FakeInteraction(message)
-                await self._show_forca_status(fake_interaction, user_id)
-                
-                try:
-                    await message.delete()
-                except:
-                    pass
 
     @app_commands.command(name="reacao", description="Mini-jogo de reação rápida")
     async def reaction_game(self, interaction: discord.Interaction):
