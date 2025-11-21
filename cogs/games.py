@@ -2,8 +2,65 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import random
+import asyncio
 from typing import List, Optional
 from utils.database import get_database
+
+
+class ChallengeView(discord.ui.View):
+    """View para aceitar/recusar desafio do jogo do galo"""
+    
+    def __init__(self, challenger: discord.Member, challenged: discord.Member):
+        super().__init__(timeout=60.0)
+        self.challenger = challenger
+        self.challenged = challenged
+        self.accepted = None
+        
+    @discord.ui.button(label="✅ Aceitar", style=discord.ButtonStyle.success)
+    async def accept_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Aceitar o desafio"""
+        if interaction.user.id != self.challenged.id:
+            return await interaction.response.send_message("❌ Este desafio não é para ti!", ephemeral=True)
+        
+        self.accepted = True
+        self.stop()
+        
+        # Desabilitar botões
+        for item in self.children:
+            item.disabled = True
+        
+        embed = discord.Embed(
+            title="✅ Desafio Aceite!",
+            description=f"{self.challenged.mention} aceitou o desafio de {self.challenger.mention}!\n\nO jogo vai começar...",
+            color=discord.Color.green()
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="❌ Recusar", style=discord.ButtonStyle.danger)
+    async def decline_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Recusar o desafio"""
+        if interaction.user.id != self.challenged.id:
+            return await interaction.response.send_message("❌ Este desafio não é para ti!", ephemeral=True)
+        
+        self.accepted = False
+        self.stop()
+        
+        # Desabilitar botões
+        for item in self.children:
+            item.disabled = True
+        
+        embed = discord.Embed(
+            title="❌ Desafio Recusado",
+            description=f"{self.challenged.mention} recusou o desafio de {self.challenger.mention}.",
+            color=discord.Color.red()
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def on_timeout(self):
+        """Timeout - desafio expirou"""
+        self.accepted = False
+        for item in self.children:
+            item.disabled = True
 
 
 class TicTacToeButton(discord.ui.Button):
@@ -26,6 +83,9 @@ class TicTacToeButton(discord.ui.Button):
         if view.board[self.y][self.x] != " ":
             return await interaction.response.send_message("❌ Esta posição já está ocupada!", ephemeral=True)
         
+        # Resetar timer
+        view.reset_turn_timer()
+        
         # Fazer a jogada
         view.board[self.y][self.x] = view.current_symbol
         self.label = "❌" if view.current_symbol == "X" else "⭕"
@@ -35,12 +95,14 @@ class TicTacToeButton(discord.ui.Button):
         # Verificar vencedor
         winner = view.check_winner()
         if winner:
+            view.cancel_turn_timer()
             view.disable_all_buttons()
             embed = view.create_embed(f"🎉 **{view.current_player_user.mention}** venceu!", discord.Color.green())
             return await interaction.response.edit_message(embed=embed, view=view)
         
         # Verificar empate
         if view.is_tied():
+            view.cancel_turn_timer()
             view.disable_all_buttons()
             embed = view.create_embed("🤝 **Empate!** Ninguém ganhou!", discord.Color.orange())
             return await interaction.response.edit_message(embed=embed, view=view)
@@ -55,12 +117,14 @@ class TicTacToeButton(discord.ui.Button):
             # Verificar vencedor após jogada do bot
             winner = view.check_winner()
             if winner:
+                view.cancel_turn_timer()
                 view.disable_all_buttons()
                 embed = view.create_embed("🤖 **EPA BOT** venceu!", discord.Color.red())
                 return await interaction.response.edit_message(embed=embed, view=view)
             
             # Verificar empate após jogada do bot
             if view.is_tied():
+                view.cancel_turn_timer()
                 view.disable_all_buttons()
                 embed = view.create_embed("🤝 **Empate!** Ninguém ganhou!", discord.Color.orange())
                 return await interaction.response.edit_message(embed=embed, view=view)
@@ -78,8 +142,8 @@ class TicTacToeButton(discord.ui.Button):
 class TicTacToeView(discord.ui.View):
     """View principal do jogo do galo"""
     
-    def __init__(self, player1: discord.Member, player2: Optional[discord.Member] = None):
-        super().__init__(timeout=300)
+    def __init__(self, player1: discord.Member, player2: Optional[discord.Member] = None, channel = None):
+        super().__init__(timeout=None)  # Sem timeout global, usamos timer manual
         
         self.player1 = player1
         self.player2 = player2  # None para modo single player
@@ -87,11 +151,54 @@ class TicTacToeView(discord.ui.View):
         self.current_symbol = "X"
         self.current_player_user = player1
         self.is_single_player = player2 is None
+        self.channel = channel
+        self.turn_timer_task = None
+        self.message = None
         
         # Adicionar botões do tabuleiro
         for y in range(3):
             for x in range(3):
                 self.add_item(TicTacToeButton(x, y))
+    
+    def start_turn_timer(self):
+        """Iniciar timer de 30 segundos para a jogada"""
+        if self.turn_timer_task:
+            self.turn_timer_task.cancel()
+        
+        if not self.is_single_player and self.current_player_user:
+            self.turn_timer_task = asyncio.create_task(self._turn_timeout())
+    
+    def reset_turn_timer(self):
+        """Resetar timer da jogada"""
+        if self.turn_timer_task:
+            self.turn_timer_task.cancel()
+        self.start_turn_timer()
+    
+    def cancel_turn_timer(self):
+        """Cancelar timer da jogada"""
+        if self.turn_timer_task:
+            self.turn_timer_task.cancel()
+            self.turn_timer_task = None
+    
+    async def _turn_timeout(self):
+        """Timeout de 30 segundos - jogador atual perde"""
+        try:
+            await asyncio.sleep(30)
+            
+            # Jogador atual perdeu por timeout
+            winner = self.player2 if self.current_player_user == self.player1 else self.player1
+            
+            self.disable_all_buttons()
+            embed = discord.Embed(
+                title="⏰ Tempo Esgotado!",
+                description=f"{self.current_player_user.mention} demorou mais de 30 segundos!\n\n🎉 **{winner.mention}** vence por desistência!",
+                color=discord.Color.orange()
+            )
+            
+            if self.message:
+                await self.message.edit(embed=embed, view=self)
+        except asyncio.CancelledError:
+            pass
     
     def create_embed(self, description: str, color: discord.Color) -> discord.Embed:
         """Criar embed do jogo"""
@@ -233,6 +340,7 @@ class TicTacToeView(discord.ui.View):
     
     async def on_timeout(self):
         """Executado quando o timeout é atingido"""
+        self.cancel_turn_timer()
         for item in self.children:
             item.disabled = True
 
@@ -554,18 +662,48 @@ class GamesCog(commands.Cog):
         if oponente and oponente.bot:
             return await interaction.response.send_message("❌ Não podes jogar contra outros bots!", ephemeral=True)
         
-        # Criar view do jogo
-        view = TicTacToeView(interaction.user, oponente)
-        
-        # Criar embed inicial
+        # Modo vs Bot - iniciar diretamente
         if oponente is None:
+            view = TicTacToeView(interaction.user, None, interaction.channel)
             description = f"Vez de {interaction.user.mention} (❌)"
-        else:
+            embed = view.create_embed(description, discord.Color.blue())
+            
+            msg = await interaction.response.send_message(embed=embed, view=view)
+            view.message = await interaction.original_response()
+            view.start_turn_timer()
+            return
+        
+        # Modo PvP - enviar desafio
+        challenge_embed = discord.Embed(
+            title="🎮 Desafio de Jogo do Galo!",
+            description=f"{interaction.user.mention} desafiou {oponente.mention} para um jogo do galo!\n\n{oponente.mention}, aceitas o desafio?",
+            color=discord.Color.blue()
+        )
+        challenge_embed.set_footer(text="⏰ Tens 60 segundos para aceitar o desafio")
+        
+        challenge_view = ChallengeView(interaction.user, oponente)
+        await interaction.response.send_message(embed=challenge_embed, view=challenge_view)
+        
+        # Aguardar resposta
+        await challenge_view.wait()
+        
+        if challenge_view.accepted is None:
+            # Timeout
+            timeout_embed = discord.Embed(
+                title="⏰ Tempo Esgotado",
+                description=f"{oponente.mention} não respondeu a tempo. O desafio expirou.",
+                color=discord.Color.orange()
+            )
+            await interaction.edit_original_response(embed=timeout_embed, view=challenge_view)
+        elif challenge_view.accepted:
+            # Aceite - iniciar jogo
+            view = TicTacToeView(interaction.user, oponente, interaction.channel)
             description = f"Vez de {interaction.user.mention} (❌)"
-        
-        embed = view.create_embed(description, discord.Color.blue())
-        
-        await interaction.response.send_message(embed=embed, view=view)
+            embed = view.create_embed(description, discord.Color.blue())
+            
+            msg = await interaction.channel.send(embed=embed, view=view)
+            view.message = msg
+            view.start_turn_timer()
 
     @discord.app_commands.command(name="4emlinha", description="Jogo do 4 em linha (Connect Four)")
     @discord.app_commands.describe(oponente="Utilizador para jogar contra (opcional, deixe em branco para jogar contra o bot)")
