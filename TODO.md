@@ -206,20 +206,6 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 
 ## 📊 Prioridades
 
-### Versão 2.2 (Próximo Release)
-
-1. Corrigir bugs conhecidos de alta prioridade
-2. Sistema de auto-moderação básico
-3. Melhorias no sistema de economia (loja de roles)
-4. Adicionar testes unitários básicos
-
-### Versão 2.3
-
-1. Dashboard web
-2. Sistema de achievements
-3. Melhorias de performance
-4. Multi-idioma (EN + PT)
-
 ### Versão 3.0 (Futuro)
 
 1. Refactoring completo da arquitetura
