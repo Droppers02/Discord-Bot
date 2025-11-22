@@ -1130,6 +1130,141 @@ class Moderation(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"❌ Erro: {e}", ephemeral=True)
 
+    @app_commands.command(name="userinfo", description="[ADMIN] Ver informações detalhadas de um utilizador")
+    @app_commands.describe(utilizador="O utilizador para obter informações")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def user_info(self, interaction: discord.Interaction, utilizador: discord.Member):
+        """
+        Comando exclusivo para administradores verem informações detalhadas de utilizadores
+        
+        Args:
+            utilizador: O membro do servidor para obter informações
+        """
+        try:
+            # Informações básicas
+            embed = discord.Embed(
+                title=f"🔍 Informações Detalhadas - {utilizador}",
+                color=discord.Color.blue(),
+                timestamp=datetime.utcnow()
+            )
+            
+            # Avatar
+            embed.set_thumbnail(url=utilizador.display_avatar.url)
+            
+            # ID e Tag
+            embed.add_field(
+                name="📋 Identificação",
+                value=f"**ID:** `{utilizador.id}`\n"
+                      f"**Tag:** {utilizador.mention}\n"
+                      f"**Username:** {utilizador.name}\n"
+                      f"**Discriminator:** #{utilizador.discriminator}",
+                inline=False
+            )
+            
+            # Informações de conta
+            created_at = utilizador.created_at.strftime("%d/%m/%Y às %H:%M:%S")
+            account_age = (datetime.utcnow() - utilizador.created_at).days
+            
+            embed.add_field(
+                name="📅 Conta Discord",
+                value=f"**Criada em:** {created_at}\n"
+                      f"**Idade da conta:** {account_age} dias\n"
+                      f"**Bot:** {'Sim ✅' if utilizador.bot else 'Não ❌'}\n"
+                      f"**Sistema:** {'Sim ✅' if utilizador.system else 'Não ❌'}",
+                inline=False
+            )
+            
+            # Informações do servidor
+            joined_at = utilizador.joined_at.strftime("%d/%m/%Y às %H:%M:%S") if utilizador.joined_at else "Desconhecido"
+            server_age = (datetime.utcnow() - utilizador.joined_at).days if utilizador.joined_at else 0
+            
+            embed.add_field(
+                name="🏠 Informações do Servidor",
+                value=f"**Entrou em:** {joined_at}\n"
+                      f"**Tempo no servidor:** {server_age} dias\n"
+                      f"**Nickname:** {utilizador.nick if utilizador.nick else 'Nenhum'}\n"
+                      f"**Status:** {str(utilizador.status).title()}\n"
+                      f"**Atividade:** {utilizador.activity.name if utilizador.activity else 'Nenhuma'}",
+                inline=False
+            )
+            
+            # Roles (máximo 10)
+            roles = [role.mention for role in utilizador.roles[1:]][:10]  # Excluir @everyone
+            roles_text = ", ".join(roles) if roles else "Nenhuma"
+            if len(utilizador.roles) > 11:
+                roles_text += f" **+{len(utilizador.roles) - 11} mais**"
+            
+            embed.add_field(
+                name=f"🎭 Roles ({len(utilizador.roles) - 1})",
+                value=roles_text,
+                inline=False
+            )
+            
+            # Permissões importantes
+            perms = []
+            if utilizador.guild_permissions.administrator:
+                perms.append("👑 Administrador")
+            if utilizador.guild_permissions.manage_guild:
+                perms.append("⚙️ Gerir Servidor")
+            if utilizador.guild_permissions.manage_roles:
+                perms.append("🎭 Gerir Roles")
+            if utilizador.guild_permissions.manage_channels:
+                perms.append("📁 Gerir Canais")
+            if utilizador.guild_permissions.kick_members:
+                perms.append("👢 Expulsar Membros")
+            if utilizador.guild_permissions.ban_members:
+                perms.append("🔨 Banir Membros")
+            if utilizador.guild_permissions.manage_messages:
+                perms.append("💬 Gerir Mensagens")
+            
+            if perms:
+                embed.add_field(
+                    name="🔐 Permissões Importantes",
+                    value="\n".join(perms),
+                    inline=False
+                )
+            
+            # Informações técnicas
+            embed.add_field(
+                name="⚙️ Informações Técnicas",
+                value=f"**Cor da role:** {utilizador.color}\n"
+                      f"**Role mais alta:** {utilizador.top_role.mention}\n"
+                      f"**Membro premium:** {'Sim 💎' if utilizador.premium_since else 'Não'}\n"
+                      f"**Timeout:** {'Sim ⏰' if utilizador.timed_out else 'Não'}",
+                inline=False
+            )
+            
+            # Avatar URLs
+            avatar_url = str(utilizador.display_avatar.url)
+            default_avatar = str(utilizador.default_avatar.url)
+            
+            embed.add_field(
+                name="🖼️ Avatares",
+                value=f"[Avatar Atual]({avatar_url})\n"
+                      f"[Avatar Padrão]({default_avatar})",
+                inline=False
+            )
+            
+            # Nota sobre IP
+            embed.add_field(
+                name="⚠️ Nota de Privacidade",
+                value="**Informações de IP não estão disponíveis.**\n"
+                      "O Discord não fornece endereços IP aos bots por questões de privacidade e segurança.",
+                inline=False
+            )
+            
+            embed.set_footer(
+                text=f"Solicitado por {interaction.user}",
+                icon_url=interaction.user.display_avatar.url
+            )
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            bot_logger.info(f"👁️ {interaction.user} (Admin) visualizou informações de {utilizador}")
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Erro ao obter informações: {e}", ephemeral=True)
+            bot_logger.error(f"Erro em userinfo: {e}")
+
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))
