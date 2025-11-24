@@ -11,6 +11,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 **Comandos de Utilidades**
 
 - ✅ **`/emoji <emoji>`** - Ampliar emoji customizado
+
   - Mostra emoji em tamanho grande (até 1024x1024)
   - Suporta emojis animados (GIF) e estáticos (PNG)
   - Links para download em múltiplos tamanhos
@@ -25,10 +26,17 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
   - Thumbnail com preview do emoji
 
 **Melhorias**
+
 - Validação automática de emojis customizados
 - Suporte completo para emojis animados
 - Interface intuitiva com embeds informativos
 - Links diretos para CDN do Discord
+
+### 🐛 Correções de Bugs
+
+- ✅ **Blackjack desaparecido** - Corrigido erro de sintaxe que impedia o carregamento do comando `/blackjack`
+  - Removido bloco `try` duplicado no comando `/quiz`
+  - Todos os comandos de jogos agora carregam corretamente
 
 ---
 

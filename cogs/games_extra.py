@@ -112,12 +112,6 @@ class GamesExtraCog(commands.Cog):
         
         try:
             reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
-            return (user.id == interaction.user.id and 
-                   str(reaction.emoji) in emojis and 
-                   reaction.message.id == message.id)
-        
-        try:
-            reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
             
             if user_id not in self.active_games or self.active_games[user_id]["answered"]:
                 return
