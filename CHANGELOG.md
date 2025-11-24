@@ -4,6 +4,30 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 ---
 
+## [2.7.0] - 2025-11-24
+
+### 🌍 Internacionalização
+
+**Nova Branch: `en` (English)**
+
+- ✅ Sistema completo de tradução implementado
+  - Branch `main` = Português de Portugal (padrão)
+  - Branch `en` = English
+  - Infraestrutura i18n completa em `config/i18n.py`
+
+- ✅ Versão em inglês disponível
+  - Todos os comandos traduzidos
+  - Documentação em inglês (README_EN.md)
+  - Sistema de configuração de idioma
+
+**Como usar:**
+- Para Português: `git checkout main`
+- Para English: `git checkout en`
+
+> Ver [README_EN.md](https://github.com/Droppers02/Discord-Community-Bot/blob/en/README_EN.md) para versão em inglês
+
+---
+
 ## [2.6.1] - 2025-11-24
 
 ### ✨ Novos Comandos de Emoji
