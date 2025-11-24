@@ -6,46 +6,25 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 ## [2.7.0] - 2025-11-24
 
-### 🌍 Internacionalização (i18n)
+### 🌍 Internacionalização
 
 **Nova Branch: `en` (English)**
 
-- ✅ **Sistema de tradução completo** (`config/i18n.py`)
-
-  - Suporte para Português (`pt`) e English (`en`)
-  - Traduções centralizadas em dicionários
-  - Sistema de formatação de strings com variáveis
-  - Fácil adição de novos idiomas
-
-- ✅ **Comandos traduzidos**
-
-  - `/help` totalmente traduzido para inglês
-  - Todas as categorias e descrições em inglês
-  - Paginação mantida (5 páginas)
-
-- ✅ **Configuração de idioma**
-
-  - Variável de ambiente `BOT_LANGUAGE`
-  - Suporte em `config/settings.py`
-  - Branch `main` = Português (padrão)
+- ✅ Sistema completo de tradução implementado
+  - Branch `main` = Português de Portugal (padrão)
   - Branch `en` = English
+  - Infraestrutura i18n completa em `config/i18n.py`
 
-- ✅ **Documentação**
-  - README_EN.md completo em inglês
-  - Instruções de instalação e configuração
-  - Guia de desenvolvimento
-  - Estrutura de tradução documentada
-
-**Estrutura de Branches**
-
-```
-main (Portuguese) ←→ en (English)
-```
+- ✅ Versão em inglês disponível
+  - Todos os comandos traduzidos
+  - Documentação em inglês (README_EN.md)
+  - Sistema de configuração de idioma
 
 **Como usar:**
+- Para Português: `git checkout main`
+- Para English: `git checkout en`
 
-- Para Português: `git checkout main` + `BOT_LANGUAGE=pt`
-- Para English: `git checkout en` + `BOT_LANGUAGE=en`
+> Ver [README_EN.md](https://github.com/Droppers02/Discord-Community-Bot/blob/en/README_EN.md) para versão em inglês
 
 ---
 
