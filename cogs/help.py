@@ -182,6 +182,8 @@ class HelpCog(commands.Cog):
         
         utility_commands = [
             "• `/avatar [user]` - Ver avatar",
+            "• `/emoji <emoji>` - Ampliar emoji customizado",
+            "• `/emojiinfo <emoji>` - Info técnica de emoji",
             "• `/userinfo [user]` - Info de utilizador",
             "• `/serverinfo` - Info do servidor",
             "• `/botinfo` - Info do bot",

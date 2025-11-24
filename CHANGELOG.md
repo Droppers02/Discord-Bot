@@ -4,6 +4,34 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 ---
 
+## [2.6.1] - 2025-11-24
+
+### ✨ Novos Comandos de Emoji
+
+**Comandos de Utilidades**
+
+- ✅ **`/emoji <emoji>`** - Ampliar emoji customizado
+  - Mostra emoji em tamanho grande (até 1024x1024)
+  - Suporta emojis animados (GIF) e estáticos (PNG)
+  - Links para download em múltiplos tamanhos
+  - Deteta automaticamente tipo de emoji
+
+- ✅ **`/emojiinfo <emoji>`** - Informações técnicas do emoji
+  - ID, nome e tipo do emoji
+  - Data de criação e criador (se disponível)
+  - Status de disponibilidade e gestão
+  - Roles com acesso (se restrito)
+  - URL direto e markdown para copiar
+  - Thumbnail com preview do emoji
+
+**Melhorias**
+- Validação automática de emojis customizados
+- Suporte completo para emojis animados
+- Interface intuitiva com embeds informativos
+- Links diretos para CDN do Discord
+
+---
+
 ## [2.6.0] - 2025-11-20
 
 ### 💰 Sistema de Economia Avançado
