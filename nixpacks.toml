@@ -12,11 +12,5 @@ aptPkgs = [
     "build-essential"
 ]
 
-[phases.install]
-cmds = [
-    "pip install --upgrade pip setuptools wheel",
-    "pip install --no-cache-dir PyNaCl --force-reinstall"
-]
-
 [start]
 cmd = "python main.py"
