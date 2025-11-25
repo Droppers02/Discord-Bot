@@ -92,7 +92,7 @@ class MusicCog(commands.Cog):
             # Opções avançadas para contornar restrições do YouTube
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android", "ios", "web"],
+                    "player_client": ["tv_embedded", "android", "ios"],
                     "player_skip": ["webpage", "configs"],
                     "skip": ["hls", "dash", "translated_subs"],
                 }
@@ -110,10 +110,11 @@ class MusicCog(commands.Cog):
             "geo_bypass_country": "US",
             "prefer_insecure": False,
             "extract_flat": False,
-            # Usar client Android por padrão (menos restritivo)
-            "extractor_retries": 3,
-            "fragment_retries": 3,
+            # Usar client tv_embedded por padrão (menos restritivo)
+            "extractor_retries": 5,
+            "fragment_retries": 5,
             "skip_unavailable_fragments": True,
+            "nocheckcertificate": True,
         }
         
         # Configurações do FFmpeg otimizadas
@@ -1094,7 +1095,21 @@ class MusicCog(commands.Cog):
                 
                 # Estratégias múltiplas para contornar restrições do YouTube
                 extraction_strategies = [
-                    # Estratégia 1: Cliente Android (mais eficaz)
+                    # Estratégia 1: TV Embedded (mais eficaz contra bloqueios)
+                    {
+                        "format": "bestaudio/best",
+                        "quiet": True,
+                        "no_warnings": True,
+                        "extract_flat": False,
+                        "extractor_args": {
+                            "youtube": {
+                                "player_client": ["tv_embedded"],
+                                "player_skip": ["webpage", "configs"]
+                            }
+                        },
+                    },
+                    
+                    # Estratégia 2: Cliente Android
                     {
                         "format": "bestaudio/best",
                         "quiet": True,
@@ -1111,7 +1126,7 @@ class MusicCog(commands.Cog):
                         }
                     },
                     
-                    # Estratégia 2: Cliente Web Embedded
+                    # Estratégia 3: Cliente Web Embedded
                     {
                         "format": "bestaudio/best",
                         "quiet": True,
@@ -1158,7 +1173,7 @@ class MusicCog(commands.Cog):
                 
                 for i, strategy in enumerate(extraction_strategies):
                     try:
-                        self.bot.logger.info(f"Tentando estratégia {i+1}/4 para extrair URL...")
+                        self.bot.logger.info(f"Tentando estratégia {i+1}/5 para extrair URL...")
                         
                         async def extract_with_strategy():
                             loop = asyncio.get_event_loop()
