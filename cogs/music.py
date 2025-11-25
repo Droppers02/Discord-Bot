@@ -92,29 +92,20 @@ class MusicCog(commands.Cog):
             # Opções avançadas para contornar restrições do YouTube
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["tv_embedded", "android", "ios"],
-                    "player_skip": ["webpage", "configs"],
-                    "skip": ["hls", "dash", "translated_subs"],
+                    "player_client": ["android", "web"],
+                    "player_skip": ["configs", "webpage"],
+                    "skip": ["hls", "dash"],
                 }
             },
             "http_headers": {
-                "User-Agent": "com.google.android.youtube/17.36.4 (Linux; U; Android 12; US) gzip",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-us,en;q=0.5",
-                "Sec-Fetch-Mode": "navigate",
+                "User-Agent": "Mozilla/5.0 (Linux; Android 11; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
             },
             # Configurações adicionais
             "cookiesfrombrowser": None,
             "age_limit": None,
             "geo_bypass": True,
-            "geo_bypass_country": "US",
             "prefer_insecure": False,
             "extract_flat": False,
-            # Usar client tv_embedded por padrão (menos restritivo)
-            "extractor_retries": 5,
-            "fragment_retries": 5,
-            "skip_unavailable_fragments": True,
-            "nocheckcertificate": True,
         }
         
         # Configurações do FFmpeg otimizadas
@@ -133,20 +124,21 @@ class MusicCog(commands.Cog):
         }
         
         # Verificar se FFmpeg existe
+        import shutil
         ffmpeg_path = self.bot.config.ffmpeg_path
-        if os.path.exists(ffmpeg_path):
-            self.ffmpeg_options["executable"] = ffmpeg_path
-            self.bot.logger.info(f"✅ FFmpeg encontrado: {ffmpeg_path}")
-        else:
-            self.bot.logger.warning(f"⚠️ FFmpeg não encontrado em: {ffmpeg_path}")
-            # Tentar usar FFmpeg do sistema
-            import shutil
+        
+        # Se for apenas "ffmpeg", verificar no PATH do sistema
+        if ffmpeg_path == "ffmpeg" or not os.path.exists(ffmpeg_path):
             system_ffmpeg = shutil.which("ffmpeg")
             if system_ffmpeg:
                 self.ffmpeg_options["executable"] = system_ffmpeg
                 self.bot.logger.info(f"✅ Usando FFmpeg do sistema: {system_ffmpeg}")
             else:
                 self.bot.logger.error("❌ FFmpeg não encontrado no sistema!")
+        else:
+            # Caminho específico (Windows)
+            self.ffmpeg_options["executable"] = ffmpeg_path
+            self.bot.logger.info(f"✅ FFmpeg encontrado: {ffmpeg_path}")
 
     async def cog_load(self):
         """Método chamado quando o cog é carregado"""
@@ -1095,21 +1087,7 @@ class MusicCog(commands.Cog):
                 
                 # Estratégias múltiplas para contornar restrições do YouTube
                 extraction_strategies = [
-                    # Estratégia 1: TV Embedded (mais eficaz contra bloqueios)
-                    {
-                        "format": "bestaudio/best",
-                        "quiet": True,
-                        "no_warnings": True,
-                        "extract_flat": False,
-                        "extractor_args": {
-                            "youtube": {
-                                "player_client": ["tv_embedded"],
-                                "player_skip": ["webpage", "configs"]
-                            }
-                        },
-                    },
-                    
-                    # Estratégia 2: Cliente Android
+                    # Estratégia 1: Cliente Android (mais eficaz)
                     {
                         "format": "bestaudio/best",
                         "quiet": True,
@@ -1126,7 +1104,7 @@ class MusicCog(commands.Cog):
                         }
                     },
                     
-                    # Estratégia 3: Cliente Web Embedded
+                    # Estratégia 2: Cliente Web Embedded
                     {
                         "format": "bestaudio/best",
                         "quiet": True,
@@ -1173,7 +1151,7 @@ class MusicCog(commands.Cog):
                 
                 for i, strategy in enumerate(extraction_strategies):
                     try:
-                        self.bot.logger.info(f"Tentando estratégia {i+1}/5 para extrair URL...")
+                        self.bot.logger.info(f"Tentando estratégia {i+1}/4 para extrair URL...")
                         
                         async def extract_with_strategy():
                             loop = asyncio.get_event_loop()
