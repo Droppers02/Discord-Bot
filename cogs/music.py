@@ -1087,7 +1087,7 @@ class MusicCog(commands.Cog):
                 
                 # Estratégias múltiplas para contornar restrições do YouTube
                 extraction_strategies = [
-                    # Estratégia 1: Cliente Android (mais eficaz)
+                    # Estratégia 1: Android client mais recente
                     {
                         "format": "bestaudio/best",
                         "quiet": True,
@@ -1095,16 +1095,36 @@ class MusicCog(commands.Cog):
                         "extract_flat": False,
                         "extractor_args": {
                             "youtube": {
-                                "player_client": ["android"],
-                                "player_skip": ["configs", "webpage"]
+                                "player_client": ["android", "web"],
+                                "player_skip": ["webpage", "configs"]
                             }
                         },
                         "http_headers": {
-                            "User-Agent": "com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip"
+                            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 13) gzip",
+                            "Accept": "*/*",
+                            "Accept-Language": "en-US,en;q=0.9",
                         }
                     },
                     
-                    # Estratégia 2: Cliente Web Embedded
+                    # Estratégia 2: iOS client (muito eficaz)
+                    {
+                        "format": "bestaudio/best",
+                        "quiet": True,
+                        "no_warnings": True,
+                        "extract_flat": False,
+                        "extractor_args": {
+                            "youtube": {
+                                "player_client": ["ios", "web"],
+                                "player_skip": ["webpage"]
+                            }
+                        },
+                        "http_headers": {
+                            "User-Agent": "com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)",
+                            "Accept": "*/*",
+                        }
+                    },
+                    
+                    # Estratégia 3: Web Embedded com headers atualizados
                     {
                         "format": "bestaudio/best",
                         "quiet": True,
@@ -1117,33 +1137,27 @@ class MusicCog(commands.Cog):
                             }
                         },
                         "http_headers": {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "Accept-Language": "en-US,en;q=0.9",
+                            "Referer": "https://www.youtube.com/"
                         }
                     },
                     
-                    # Estratégia 3: Headers customizados
+                    # Estratégia 4: TV client (alternativa)
                     {
                         "format": "bestaudio/best",
                         "quiet": True,
                         "no_warnings": True,
                         "extract_flat": False,
-                        "geo_bypass": True,
+                        "extractor_args": {
+                            "youtube": {
+                                "player_client": ["tv_embedded"],
+                            }
+                        },
                         "http_headers": {
-                            "User-Agent": "yt-dlp/2023.09.24",
-                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                            "Accept-Language": "en-us,en;q=0.5",
-                            "Accept-Encoding": "gzip,deflate",
+                            "User-Agent": "Mozilla/5.0 (PlayStation; PlayStation 5/2.26) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0 Safari/605.1.15",
                         }
                     },
-                    
-                    # Estratégia 4: Configuração ultra-simples (fallback)
-                    {
-                        "format": "worst",
-                        "quiet": True,
-                        "no_warnings": True,
-                        "ignoreerrors": True,
-                        "no_check_certificate": True,
-                    }
                 ]
                 
                 data = None
