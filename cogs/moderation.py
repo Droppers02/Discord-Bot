@@ -747,36 +747,164 @@ class Moderation(commands.Cog):
             self.logger.error(f"Erro ao obter avisos: {e}")
             await interaction.response.send_message("❌ Erro ao obter avisos!", ephemeral=True)
     
-    @app_commands.command(name="clear", description="Apaga mensagens em massa")
-    @app_commands.describe(quantidade="Número de mensagens a apagar (1-100)")
+    # Clear command group
+    clear_group = app_commands.Group(name="clear", description="Commands to delete messages")
+    
+    @clear_group.command(name="amount", description="Delete a specific number of messages")
+    @app_commands.describe(amount="Number of messages to delete (1-100)")
     @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.checks.bot_has_permissions(manage_messages=True)
-    async def clear(
+    async def clear_amount(
         self,
         interaction: discord.Interaction,
-        quantidade: app_commands.Range[int, 1, 100]
+        amount: app_commands.Range[int, 1, 100]
     ):
-        """Apaga mensagens em massa"""
+        """Delete messages in bulk"""
         
         try:
             await interaction.response.defer(ephemeral=True)
             
-            deleted = await interaction.channel.purge(limit=quantidade)
+            deleted = await interaction.channel.purge(limit=amount)
             
             embed = EmbedBuilder.success(
-                title="🗑️ Mensagens apagadas",
-                description=f"**{len(deleted)}** mensagens foram apagadas!"
+                title="🗑️ Messages Deleted",
+                description=f"**{len(deleted)}** messages have been deleted!"
             )
-            embed.add_field(name="Moderador", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
             
             await interaction.followup.send(embed=embed, ephemeral=True)
-            self.logger.info(f"{interaction.user} apagou {len(deleted)} mensagens em {interaction.channel}")
+            self.logger.info(f"{interaction.user} deleted {len(deleted)} messages in {interaction.channel}")
             
         except discord.Forbidden:
-            await interaction.followup.send("❌ Não tenho permissões para apagar mensagens!", ephemeral=True)
+            await interaction.followup.send("❌ I don't have permissions to delete messages!", ephemeral=True)
         except Exception as e:
-            self.logger.error(f"Erro ao apagar mensagens: {e}")
-            await interaction.followup.send("❌ Erro ao apagar mensagens!", ephemeral=True)
+            self.logger.error(f"Error deleting messages: {e}")
+            await interaction.followup.send("❌ Error deleting messages!", ephemeral=True)
+    
+    @clear_group.command(name="from", description="Delete messages from a specific message onwards")
+    @app_commands.describe(
+        message_id="ID of the message to start deleting from (right-click > Copy ID)",
+        limit="Maximum number of messages to delete (1-100)"
+    )
+    @app_commands.checks.has_permissions(manage_messages=True)
+    @app_commands.checks.bot_has_permissions(manage_messages=True)
+    async def clear_from(
+        self,
+        interaction: discord.Interaction,
+        message_id: str,
+        limit: app_commands.Range[int, 1, 100] = 100
+    ):
+        """Delete messages from a specific message onwards"""
+        
+        try:
+            await interaction.response.defer(ephemeral=True)
+            
+            # Convert ID to int
+            try:
+                msg_id = int(message_id)
+            except ValueError:
+                await interaction.followup.send("❌ Invalid message ID!", ephemeral=True)
+                return
+            
+            # Fetch starting message
+            try:
+                start_message = await interaction.channel.fetch_message(msg_id)
+            except discord.NotFound:
+                await interaction.followup.send("❌ Message not found in this channel!", ephemeral=True)
+                return
+            except discord.Forbidden:
+                await interaction.followup.send("❌ I don't have permission to view that message!", ephemeral=True)
+                return
+            
+            # Delete messages after the specified message (including it)
+            deleted = await interaction.channel.purge(limit=limit, after=start_message.created_at - timedelta(seconds=1))
+            
+            embed = EmbedBuilder.success(
+                title="🗑️ Messages Deleted",
+                description=f"**{len(deleted)}** messages have been deleted from the specified message!"
+            )
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Starting Message", value=f"ID: `{message_id}`", inline=True)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            self.logger.info(f"{interaction.user} deleted {len(deleted)} messages from {message_id} in {interaction.channel}")
+            
+        except discord.Forbidden:
+            await interaction.followup.send("❌ I don't have permissions to delete messages!", ephemeral=True)
+        except Exception as e:
+            self.logger.error(f"Error deleting messages: {e}")
+            await interaction.followup.send(f"❌ Error deleting messages: {str(e)}", ephemeral=True)
+    
+    @clear_group.command(name="between", description="Delete messages between two specific messages")
+    @app_commands.describe(
+        start_message="ID of the first message in the range",
+        end_message="ID of the last message in the range"
+    )
+    @app_commands.checks.has_permissions(manage_messages=True)
+    @app_commands.checks.bot_has_permissions(manage_messages=True)
+    async def clear_between(
+        self,
+        interaction: discord.Interaction,
+        start_message: str,
+        end_message: str
+    ):
+        """Delete messages between two specific messages"""
+        
+        try:
+            await interaction.response.defer(ephemeral=True)
+            
+            # Convert IDs to int
+            try:
+                msg_start_id = int(start_message)
+                msg_end_id = int(end_message)
+            except ValueError:
+                await interaction.followup.send("❌ Invalid message IDs!", ephemeral=True)
+                return
+            
+            # Check which is older
+            if msg_start_id > msg_end_id:
+                msg_start_id, msg_end_id = msg_end_id, msg_start_id
+                start_message, end_message = end_message, start_message
+            
+            # Fetch messages
+            try:
+                start_msg = await interaction.channel.fetch_message(msg_start_id)
+                end_msg = await interaction.channel.fetch_message(msg_end_id)
+            except discord.NotFound:
+                await interaction.followup.send("❌ One or both messages were not found in this channel!", ephemeral=True)
+                return
+            except discord.Forbidden:
+                await interaction.followup.send("❌ I don't have permission to view those messages!", ephemeral=True)
+                return
+            
+            # Calculate time difference
+            time_diff = (end_msg.created_at - start_msg.created_at).total_seconds()
+            if time_diff > 14 * 24 * 3600:  # 14 days
+                await interaction.followup.send("❌ The range cannot be greater than 14 days (Discord limitation)!", ephemeral=True)
+                return
+            
+            # Delete messages in range
+            deleted = await interaction.channel.purge(
+                after=start_msg.created_at - timedelta(seconds=1),
+                before=end_msg.created_at + timedelta(seconds=1)
+            )
+            
+            embed = EmbedBuilder.success(
+                title="🗑️ Messages Deleted",
+                description=f"**{len(deleted)}** messages have been deleted in the specified range!"
+            )
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=False)
+            embed.add_field(name="Start", value=f"ID: `{start_message}`", inline=True)
+            embed.add_field(name="End", value=f"ID: `{end_message}`", inline=True)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            self.logger.info(f"{interaction.user} deleted {len(deleted)} messages between {start_message} and {end_message} in {interaction.channel}")
+            
+        except discord.Forbidden:
+            await interaction.followup.send("❌ I don't have permissions to delete messages!", ephemeral=True)
+        except Exception as e:
+            self.logger.error(f"Error deleting messages: {e}")
+            await interaction.followup.send(f"❌ Error deleting messages: {str(e)}", ephemeral=True)
     
     @app_commands.command(name="setup_modlogs", description="Configura o canal de logs de moderação")
     @app_commands.describe(canal="Canal para receber logs de moderação")
