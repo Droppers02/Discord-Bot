@@ -86,14 +86,14 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 - ✅ Versão em inglês disponível
   - Todos os comandos traduzidos
-  - Documentação em inglês (README_EN.md)
+  - Documentação em inglês (README.md no branch en)
   - Sistema de configuração de idioma
 
 **Como usar:**
 - Para Português: `git checkout main`
 - Para English: `git checkout en`
 
-> Ver [README_EN.md](https://github.com/Droppers02/Discord-Community-Bot/blob/en/README_EN.md) para versão em inglês
+> Ver branch [en](https://github.com/Droppers02/Discord-Community-Bot/tree/en) para versão em inglês
 
 ---
 

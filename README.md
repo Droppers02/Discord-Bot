@@ -10,7 +10,7 @@ Bot Discord completo com sistema de economia, jogos, música, moderação, ticke
 **Autor:** Droppers  
 **Linguagem:** Python 3.10+
 
-> 🌍 **English version available!** → [Switch to branch `en`](https://github.com/Droppers02/Discord-Community-Bot/tree/en) or see [README_EN.md](https://github.com/Droppers02/Discord-Community-Bot/blob/en/README_EN.md)
+> 🌍 **English version available!** → [Switch to branch `en`](https://github.com/Droppers02/Discord-Community-Bot/tree/en)
 
 ---
 
