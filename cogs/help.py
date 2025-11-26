@@ -235,6 +235,9 @@ class HelpCog(commands.Cog):
             "• `/setup_modlogs <canal>` - Logs de moderação",
             "• `/setup_wordfilter` - Filtro de palavras",
             "• `/setup_quarantine` - Sistema de quarentena",
+            "• `/setup_antispam` - Anti-spam com whitelist",
+            "• `/setup_antiraid` - Proteção anti-raid",
+            "• `/setup_nsfw` - Detecção de NSFW",
             "• `/setup_appeals` - Sistema de appeals"
         ]
         embed4.add_field(name="🔧 **Moderação Avançada**", value="\n".join(moderation_advanced), inline=False)
