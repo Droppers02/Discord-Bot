@@ -26,6 +26,14 @@ class Moderation(commands.Cog):
         self.logger = bot.logger
         self.config_file = "config/moderation_config.json"
         self.quarantine_users = {}  # {user_id: timestamp}
+        
+        # Anti-spam tracking
+        self.user_messages = {}  # {user_id: [timestamps]}
+        self.spam_warnings = {}  # {user_id: warning_count}
+        
+        # Anti-raid tracking
+        self.recent_joins = []  # [(user_id, timestamp)]
+        
         self.load_config()
     
     def load_config(self):
@@ -57,7 +65,7 @@ class Moderation(commands.Cog):
         """Carregado quando o cog é inicializado"""
         self.db = await get_database()
         self.check_quarantine.start()
-        bot_logger.info("Sistema de moderação avançado carregado")
+        bot_logger.info("✅ Sistema de moderação avançado carregado")
     
     def cog_unload(self):
         """Parar tasks ao descarregar"""
@@ -110,7 +118,25 @@ class Moderation(commands.Cog):
     
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        """Aplicar quarentena a novos membros"""
+        """Aplicar quarentena a novos membros e monitorar raids"""
+        # Anti-raid check
+        if self.config.get("anti_raid", {}).get("enabled", False):
+            current_time = datetime.now().timestamp()
+            time_window = self.config.get("anti_raid", {}).get("time_window", 60)
+            
+            # Adicionar join atual
+            self.recent_joins.append((member.id, current_time))
+            
+            # Remover joins antigos
+            self.recent_joins = [(uid, t) for uid, t in self.recent_joins 
+                                 if current_time - t <= time_window]
+            
+            # Verificar threshold
+            join_threshold = self.config.get("anti_raid", {}).get("join_threshold", 10)
+            if len(self.recent_joins) >= join_threshold:
+                await self.handle_raid(member.guild)
+        
+        # Quarentena
         if not self.config.get("quarantine", {}).get("enabled", False):
             return
         
@@ -147,14 +173,32 @@ class Moderation(commands.Cog):
     
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """Filtrar palavras proibidas"""
+        """Filtrar palavras proibidas, spam e NSFW"""
         if message.author.bot:
             return
         
-        if not self.config.get("word_filter", {}).get("enabled", False):
+        if not isinstance(message.channel, discord.TextChannel):
             return
         
-        if not isinstance(message.channel, discord.TextChannel):
+        # Anti-spam check
+        if self.config.get("anti_spam", {}).get("enabled", False):
+            whitelisted = self.config.get("anti_spam", {}).get("whitelisted_channels", [])
+            if message.channel.id not in whitelisted:
+                # Bypass para moderadores
+                if not message.author.guild_permissions.manage_messages:
+                    if await self.check_spam(message):
+                        return  # Mensagem tratada como spam
+        
+        # NSFW detection
+        if self.config.get("nsfw_detection", {}).get("enabled", False) and message.attachments:
+            whitelisted_nsfw = self.config.get("nsfw_detection", {}).get("whitelisted_channels", [])
+            if message.channel.id not in whitelisted_nsfw:
+                # Bypass para moderadores
+                if not message.author.guild_permissions.manage_messages:
+                    await self.check_nsfw(message)
+        
+        # Word filter
+        if not self.config.get("word_filter", {}).get("enabled", False):
             return
         
         # Verificar se tem permissões de moderador (bypass)
@@ -229,6 +273,238 @@ class Moderation(commands.Cog):
                         pass
                 
                 break  # Só processar a primeira palavra encontrada
+    
+    async def handle_raid(self, guild: discord.Guild):
+        """Lidar com raid detectado"""
+        action = self.config.get("anti_raid", {}).get("action", "kick")
+        
+        # Log do raid
+        embed = discord.Embed(
+            title="🚨 RAID DETECTADO",
+            description=f"**Joins suspeitos:** {len(self.recent_joins)} membros em pouco tempo",
+            color=discord.Color.red(),
+            timestamp=datetime.now()
+        )
+        
+        joins_info = "\n".join([f"<@{uid}> - <t:{int(t)}:R>" for uid, t in self.recent_joins[-10:]])
+        embed.add_field(name="Últimos Joins", value=joins_info or "Nenhum", inline=False)
+        embed.add_field(name="Ação", value=action.upper(), inline=True)
+        
+        await self.send_mod_log(embed, guild)
+        
+        # Executar ação nos raiders
+        if action == "kick":
+            for user_id, _ in self.recent_joins:
+                member = guild.get_member(user_id)
+                if member:
+                    try:
+                        await member.kick(reason="Anti-raid automático")
+                    except:
+                        pass
+        
+        # Limpar lista
+        self.recent_joins.clear()
+        
+        bot_logger.warning(f"Raid detectado em {guild.name} - Ação: {action}")
+    
+    async def check_spam(self, message: discord.Message) -> bool:
+        """Verificar se mensagem é spam"""
+        user_id = message.author.id
+        current_time = datetime.now().timestamp()
+        
+        # Inicializar tracking
+        if user_id not in self.user_messages:
+            self.user_messages[user_id] = []
+        
+        # Adicionar mensagem atual
+        self.user_messages[user_id].append({
+            "time": current_time,
+            "content": message.content
+        })
+        
+        # Remover mensagens antigas
+        time_window = self.config.get("anti_spam", {}).get("time_window", 5)
+        self.user_messages[user_id] = [
+            msg for msg in self.user_messages[user_id]
+            if current_time - msg["time"] <= time_window
+        ]
+        
+        # Verificar threshold de mensagens
+        message_threshold = self.config.get("anti_spam", {}).get("message_threshold", 5)
+        recent_msgs = self.user_messages[user_id]
+        
+        if len(recent_msgs) >= message_threshold:
+            await self.handle_spam(message, "Muitas mensagens em pouco tempo")
+            return True
+        
+        # Verificar mensagens duplicadas
+        duplicate_threshold = self.config.get("anti_spam", {}).get("duplicate_threshold", 3)
+        if len(recent_msgs) >= duplicate_threshold:
+            last_contents = [msg["content"] for msg in recent_msgs[-duplicate_threshold:]]
+            if len(set(last_contents)) == 1 and last_contents[0]:  # Todas iguais
+                await self.handle_spam(message, "Spam de mensagens idênticas")
+                return True
+        
+        return False
+    
+    async def handle_spam(self, message: discord.Message, reason: str):
+        """Lidar com spam detectado"""
+        action = self.config.get("anti_spam", {}).get("action", "timeout")
+        
+        # Deletar mensagens recentes do spammer
+        try:
+            user_id = message.author.id
+            if user_id in self.user_messages:
+                # Tentar deletar mensagens recentes
+                async for msg in message.channel.history(limit=50):
+                    if msg.author.id == user_id and (datetime.now().timestamp() - msg.created_at.timestamp()) < 10:
+                        try:
+                            await msg.delete()
+                        except:
+                            pass
+                
+                # Limpar tracking
+                self.user_messages[user_id] = []
+        except:
+            pass
+        
+        # Executar ação
+        member = message.author
+        if action == "warn":
+            # Inicializar warnings
+            if member.id not in self.spam_warnings:
+                self.spam_warnings[member.id] = 0
+            
+            self.spam_warnings[member.id] += 1
+            
+            try:
+                await message.channel.send(
+                    f"⚠️ {member.mention} **AVISO DE SPAM** ({self.spam_warnings[member.id]}/3)\n"
+                    f"**Motivo:** {reason}\n"
+                    f"Continuar resultará em timeout!",
+                    delete_after=10
+                )
+            except:
+                pass
+        
+        elif action == "timeout":
+            duration = self.config.get("anti_spam", {}).get("timeout_duration", 300)
+            try:
+                await member.timeout(
+                    datetime.now() + timedelta(seconds=duration),
+                    reason=f"Anti-spam: {reason}"
+                )
+            except:
+                pass
+        
+        elif action == "kick":
+            try:
+                await member.kick(reason=f"Anti-spam: {reason}")
+            except:
+                pass
+        
+        # Log
+        embed = discord.Embed(
+            title="🚫 Spam Detectado",
+            description=f"**Usuário:** {member.mention}\n**Motivo:** {reason}",
+            color=discord.Color.red(),
+            timestamp=datetime.now()
+        )
+        embed.add_field(name="Ação", value=action.upper(), inline=True)
+        embed.add_field(name="Canal", value=message.channel.mention, inline=True)
+        embed.set_thumbnail(url=member.display_avatar.url)
+        
+        await self.send_mod_log(embed, message.guild)
+        
+        bot_logger.warning(f"Spam detectado: {member} em {message.channel} - {reason}")
+    
+    async def check_nsfw(self, message: discord.Message):
+        """Verificar se imagem é NSFW usando DeepAI"""
+        api_key = self.config.get("nsfw_detection", {}).get("api_key", "")
+        
+        if not api_key:
+            return
+        
+        confidence_threshold = self.config.get("nsfw_detection", {}).get("confidence_threshold", 0.7)
+        
+        for attachment in message.attachments:
+            # Verificar se é imagem
+            if not any(attachment.filename.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']):
+                continue
+            
+            try:
+                import aiohttp
+                
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        'https://api.deepai.org/api/nsfw-detector',
+                        data={'image': attachment.url},
+                        headers={'api-key': api_key}
+                    ) as resp:
+                        if resp.status == 200:
+                            result = await resp.json()
+                            nsfw_score = result.get('output', {}).get('nsfw_score', 0)
+                            
+                            if nsfw_score >= confidence_threshold:
+                                await self.handle_nsfw(message, nsfw_score)
+                                return
+            
+            except Exception as e:
+                bot_logger.error(f"Erro ao verificar NSFW: {e}")
+    
+    async def handle_nsfw(self, message: discord.Message, score: float):
+        """Lidar com conteúdo NSFW detectado"""
+        action = self.config.get("nsfw_detection", {}).get("action", "delete")
+        
+        # Deletar mensagem
+        if action in ["delete", "warn", "timeout", "kick"]:
+            try:
+                await message.delete()
+            except:
+                pass
+        
+        member = message.author
+        
+        # Ações adicionais
+        if action == "warn":
+            try:
+                await message.channel.send(
+                    f"⚠️ {member.mention} Conteúdo NSFW não é permitido neste canal!",
+                    delete_after=10
+                )
+            except:
+                pass
+        
+        elif action == "timeout":
+            try:
+                await member.timeout(
+                    datetime.now() + timedelta(minutes=30),
+                    reason=f"Envio de conteúdo NSFW (confiança: {score:.2%})"
+                )
+            except:
+                pass
+        
+        elif action == "kick":
+            try:
+                await member.kick(reason=f"Envio de conteúdo NSFW (confiança: {score:.2%})")
+            except:
+                pass
+        
+        # Log
+        embed = discord.Embed(
+            title="🔞 Conteúdo NSFW Detectado",
+            description=f"**Usuário:** {member.mention}",
+            color=discord.Color.red(),
+            timestamp=datetime.now()
+        )
+        embed.add_field(name="Confiança", value=f"{score:.2%}", inline=True)
+        embed.add_field(name="Canal", value=message.channel.mention, inline=True)
+        embed.add_field(name="Ação", value=action.upper(), inline=True)
+        embed.set_thumbnail(url=member.display_avatar.url)
+        
+        await self.send_mod_log(embed, message.guild)
+        
+        bot_logger.warning(f"NSFW detectado: {member} em {message.channel} - Score: {score:.2%}")
     
     def has_mod_permissions():
         """Decorador para verificar permissões de moderador"""
@@ -747,164 +1023,164 @@ class Moderation(commands.Cog):
             self.logger.error(f"Erro ao obter avisos: {e}")
             await interaction.response.send_message("❌ Erro ao obter avisos!", ephemeral=True)
     
-    # Clear command group
-    clear_group = app_commands.Group(name="clear", description="Commands to delete messages")
+    # Grupo de comandos /clear
+    clear_group = app_commands.Group(name="clear", description="Comandos para apagar mensagens")
     
-    @clear_group.command(name="amount", description="Delete a specific number of messages")
-    @app_commands.describe(amount="Number of messages to delete (1-100)")
+    @clear_group.command(name="quantidade", description="Apaga um número específico de mensagens")
+    @app_commands.describe(quantidade="Número de mensagens a apagar (1-100)")
     @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.checks.bot_has_permissions(manage_messages=True)
-    async def clear_amount(
+    async def clear_quantidade(
         self,
         interaction: discord.Interaction,
-        amount: app_commands.Range[int, 1, 100]
+        quantidade: app_commands.Range[int, 1, 100]
     ):
-        """Delete messages in bulk"""
+        """Apaga mensagens em massa"""
         
         try:
             await interaction.response.defer(ephemeral=True)
             
-            deleted = await interaction.channel.purge(limit=amount)
+            deleted = await interaction.channel.purge(limit=quantidade)
             
             embed = EmbedBuilder.success(
-                title="🗑️ Messages Deleted",
-                description=f"**{len(deleted)}** messages have been deleted!"
+                title="🗑️ Mensagens apagadas",
+                description=f"**{len(deleted)}** mensagens foram apagadas!"
             )
-            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Moderador", value=interaction.user.mention, inline=True)
             
             await interaction.followup.send(embed=embed, ephemeral=True)
-            self.logger.info(f"{interaction.user} deleted {len(deleted)} messages in {interaction.channel}")
+            self.logger.info(f"{interaction.user} apagou {len(deleted)} mensagens em {interaction.channel}")
             
         except discord.Forbidden:
-            await interaction.followup.send("❌ I don't have permissions to delete messages!", ephemeral=True)
+            await interaction.followup.send("❌ Não tenho permissões para apagar mensagens!", ephemeral=True)
         except Exception as e:
-            self.logger.error(f"Error deleting messages: {e}")
-            await interaction.followup.send("❌ Error deleting messages!", ephemeral=True)
+            self.logger.error(f"Erro ao apagar mensagens: {e}")
+            await interaction.followup.send("❌ Erro ao apagar mensagens!", ephemeral=True)
     
-    @clear_group.command(name="from", description="Delete messages from a specific message onwards")
+    @clear_group.command(name="apartir", description="Apaga mensagens a partir de uma mensagem específica")
     @app_commands.describe(
-        message_id="ID of the message to start deleting from (right-click > Copy ID)",
-        limit="Maximum number of messages to delete (1-100)"
+        mensagem_id="ID da mensagem a partir da qual apagar (clica direito > Copiar ID)",
+        limite="Número máximo de mensagens a apagar (1-100)"
     )
     @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.checks.bot_has_permissions(manage_messages=True)
-    async def clear_from(
+    async def clear_apartir(
         self,
         interaction: discord.Interaction,
-        message_id: str,
-        limit: app_commands.Range[int, 1, 100] = 100
+        mensagem_id: str,
+        limite: app_commands.Range[int, 1, 100] = 100
     ):
-        """Delete messages from a specific message onwards"""
+        """Apaga mensagens a partir de uma mensagem específica"""
         
         try:
             await interaction.response.defer(ephemeral=True)
             
-            # Convert ID to int
+            # Converter ID para int
             try:
-                msg_id = int(message_id)
+                msg_id = int(mensagem_id)
             except ValueError:
-                await interaction.followup.send("❌ Invalid message ID!", ephemeral=True)
+                await interaction.followup.send("❌ ID de mensagem inválido!", ephemeral=True)
                 return
             
-            # Fetch starting message
+            # Buscar mensagem inicial
             try:
                 start_message = await interaction.channel.fetch_message(msg_id)
             except discord.NotFound:
-                await interaction.followup.send("❌ Message not found in this channel!", ephemeral=True)
+                await interaction.followup.send("❌ Mensagem não encontrada neste canal!", ephemeral=True)
                 return
             except discord.Forbidden:
-                await interaction.followup.send("❌ I don't have permission to view that message!", ephemeral=True)
+                await interaction.followup.send("❌ Não tenho permissão para ver essa mensagem!", ephemeral=True)
                 return
             
-            # Delete messages after the specified message (including it)
-            deleted = await interaction.channel.purge(limit=limit, after=start_message.created_at - timedelta(seconds=1))
+            # Apagar mensagens após a mensagem especificada (incluindo ela)
+            deleted = await interaction.channel.purge(limit=limite, after=start_message.created_at - timedelta(seconds=1))
             
             embed = EmbedBuilder.success(
-                title="🗑️ Messages Deleted",
-                description=f"**{len(deleted)}** messages have been deleted from the specified message!"
+                title="🗑️ Mensagens apagadas",
+                description=f"**{len(deleted)}** mensagens foram apagadas a partir da mensagem especificada!"
             )
-            embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
-            embed.add_field(name="Starting Message", value=f"ID: `{message_id}`", inline=True)
+            embed.add_field(name="Moderador", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Mensagem inicial", value=f"ID: `{mensagem_id}`", inline=True)
             
             await interaction.followup.send(embed=embed, ephemeral=True)
-            self.logger.info(f"{interaction.user} deleted {len(deleted)} messages from {message_id} in {interaction.channel}")
+            self.logger.info(f"{interaction.user} apagou {len(deleted)} mensagens a partir de {mensagem_id} em {interaction.channel}")
             
         except discord.Forbidden:
-            await interaction.followup.send("❌ I don't have permissions to delete messages!", ephemeral=True)
+            await interaction.followup.send("❌ Não tenho permissões para apagar mensagens!", ephemeral=True)
         except Exception as e:
-            self.logger.error(f"Error deleting messages: {e}")
-            await interaction.followup.send(f"❌ Error deleting messages: {str(e)}", ephemeral=True)
+            self.logger.error(f"Erro ao apagar mensagens: {e}")
+            await interaction.followup.send(f"❌ Erro ao apagar mensagens: {str(e)}", ephemeral=True)
     
-    @clear_group.command(name="between", description="Delete messages between two specific messages")
+    @clear_group.command(name="intervalo", description="Apaga mensagens entre duas mensagens específicas")
     @app_commands.describe(
-        start_message="ID of the first message in the range",
-        end_message="ID of the last message in the range"
+        mensagem_inicio="ID da primeira mensagem do intervalo",
+        mensagem_fim="ID da última mensagem do intervalo"
     )
     @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.checks.bot_has_permissions(manage_messages=True)
-    async def clear_between(
+    async def clear_intervalo(
         self,
         interaction: discord.Interaction,
-        start_message: str,
-        end_message: str
+        mensagem_inicio: str,
+        mensagem_fim: str
     ):
-        """Delete messages between two specific messages"""
+        """Apaga mensagens entre duas mensagens específicas"""
         
         try:
             await interaction.response.defer(ephemeral=True)
             
-            # Convert IDs to int
+            # Converter IDs para int
             try:
-                msg_start_id = int(start_message)
-                msg_end_id = int(end_message)
+                msg_inicio_id = int(mensagem_inicio)
+                msg_fim_id = int(mensagem_fim)
             except ValueError:
-                await interaction.followup.send("❌ Invalid message IDs!", ephemeral=True)
+                await interaction.followup.send("❌ IDs de mensagem inválidos!", ephemeral=True)
                 return
             
-            # Check which is older
-            if msg_start_id > msg_end_id:
-                msg_start_id, msg_end_id = msg_end_id, msg_start_id
-                start_message, end_message = end_message, start_message
+            # Verificar qual é a mais antiga
+            if msg_inicio_id > msg_fim_id:
+                msg_inicio_id, msg_fim_id = msg_fim_id, msg_inicio_id
+                mensagem_inicio, mensagem_fim = mensagem_fim, mensagem_inicio
             
-            # Fetch messages
+            # Buscar mensagens
             try:
-                start_msg = await interaction.channel.fetch_message(msg_start_id)
-                end_msg = await interaction.channel.fetch_message(msg_end_id)
+                start_message = await interaction.channel.fetch_message(msg_inicio_id)
+                end_message = await interaction.channel.fetch_message(msg_fim_id)
             except discord.NotFound:
-                await interaction.followup.send("❌ One or both messages were not found in this channel!", ephemeral=True)
+                await interaction.followup.send("❌ Uma ou ambas mensagens não foram encontradas neste canal!", ephemeral=True)
                 return
             except discord.Forbidden:
-                await interaction.followup.send("❌ I don't have permission to view those messages!", ephemeral=True)
+                await interaction.followup.send("❌ Não tenho permissão para ver essas mensagens!", ephemeral=True)
                 return
             
-            # Calculate time difference
-            time_diff = (end_msg.created_at - start_msg.created_at).total_seconds()
-            if time_diff > 14 * 24 * 3600:  # 14 days
-                await interaction.followup.send("❌ The range cannot be greater than 14 days (Discord limitation)!", ephemeral=True)
+            # Calcular diferença de tempo
+            time_diff = (end_message.created_at - start_message.created_at).total_seconds()
+            if time_diff > 14 * 24 * 3600:  # 14 dias
+                await interaction.followup.send("❌ O intervalo não pode ser maior que 14 dias (limitação do Discord)!", ephemeral=True)
                 return
             
-            # Delete messages in range
+            # Apagar mensagens no intervalo
             deleted = await interaction.channel.purge(
-                after=start_msg.created_at - timedelta(seconds=1),
-                before=end_msg.created_at + timedelta(seconds=1)
+                after=start_message.created_at - timedelta(seconds=1),
+                before=end_message.created_at + timedelta(seconds=1)
             )
             
             embed = EmbedBuilder.success(
-                title="🗑️ Messages Deleted",
-                description=f"**{len(deleted)}** messages have been deleted in the specified range!"
+                title="🗑️ Mensagens apagadas",
+                description=f"**{len(deleted)}** mensagens foram apagadas no intervalo especificado!"
             )
-            embed.add_field(name="Moderator", value=interaction.user.mention, inline=False)
-            embed.add_field(name="Start", value=f"ID: `{start_message}`", inline=True)
-            embed.add_field(name="End", value=f"ID: `{end_message}`", inline=True)
+            embed.add_field(name="Moderador", value=interaction.user.mention, inline=False)
+            embed.add_field(name="Início", value=f"ID: `{mensagem_inicio}`", inline=True)
+            embed.add_field(name="Fim", value=f"ID: `{mensagem_fim}`", inline=True)
             
             await interaction.followup.send(embed=embed, ephemeral=True)
-            self.logger.info(f"{interaction.user} deleted {len(deleted)} messages between {start_message} and {end_message} in {interaction.channel}")
+            self.logger.info(f"{interaction.user} apagou {len(deleted)} mensagens entre {mensagem_inicio} e {mensagem_fim} em {interaction.channel}")
             
         except discord.Forbidden:
-            await interaction.followup.send("❌ I don't have permissions to delete messages!", ephemeral=True)
+            await interaction.followup.send("❌ Não tenho permissões para apagar mensagens!", ephemeral=True)
         except Exception as e:
-            self.logger.error(f"Error deleting messages: {e}")
-            await interaction.followup.send(f"❌ Error deleting messages: {str(e)}", ephemeral=True)
+            self.logger.error(f"Erro ao apagar mensagens: {e}")
+            await interaction.followup.send(f"❌ Erro ao apagar mensagens: {str(e)}", ephemeral=True)
     
     @app_commands.command(name="setup_modlogs", description="Configura o canal de logs de moderação")
     @app_commands.describe(canal="Canal para receber logs de moderação")
@@ -1211,6 +1487,234 @@ class Moderation(commands.Cog):
         except Exception as e:
             bot_logger.error(f"Erro no appeal: {e}")
             await interaction.response.send_message(f"❌ Erro ao enviar appeal: {e}", ephemeral=True)
+    
+    @app_commands.command(name="setup_antispam", description="Configure anti-spam system")
+    @app_commands.describe(
+        enable="Enable or disable anti-spam",
+        channel="Channel to add/remove from whitelist",
+        action="Add or remove channel from whitelist"
+    )
+    @app_commands.choices(action=[
+        app_commands.Choice(name="Add", value="add"),
+        app_commands.Choice(name="Remove", value="remove"),
+        app_commands.Choice(name="List", value="list")
+    ])
+    @app_commands.checks.has_permissions(administrator=True)
+    async def setup_antispam(
+        self,
+        interaction: discord.Interaction,
+        enable: Optional[bool] = None,
+        channel: Optional[discord.TextChannel] = None,
+        action: Optional[str] = None
+    ):
+        """Configure anti-spam system"""
+        try:
+            if enable is not None:
+                self.config["anti_spam"]["enabled"] = enable
+            
+            whitelisted = self.config.get("anti_spam", {}).get("whitelisted_channels", [])
+            
+            if action and channel:
+                if action == "add":
+                    if channel.id not in whitelisted:
+                        whitelisted.append(channel.id)
+                        self.config["anti_spam"]["whitelisted_channels"] = whitelisted
+                        action_msg = f"✅ {channel.mention} added to whitelist"
+                    else:
+                        action_msg = f"ℹ️ {channel.mention} already in whitelist"
+                
+                elif action == "remove":
+                    if channel.id in whitelisted:
+                        whitelisted.remove(channel.id)
+                        self.config["anti_spam"]["whitelisted_channels"] = whitelisted
+                        action_msg = f"✅ {channel.mention} removed from whitelist"
+                    else:
+                        action_msg = f"ℹ️ {channel.mention} not in whitelist"
+            
+            elif action == "list":
+                if whitelisted:
+                    channels_list = "\n".join([f"<#{cid}>" for cid in whitelisted])
+                    action_msg = f"**Whitelisted Channels:**\n{channels_list}"
+                else:
+                    action_msg = "No channels in whitelist"
+            else:
+                action_msg = ""
+            
+            # Salvar config
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=2, ensure_ascii=False)
+            
+            status = "✅ Enabled" if self.config["anti_spam"]["enabled"] else "❌ Disabled"
+            
+            embed = discord.Embed(
+                title="🚫 Anti-Spam Configured",
+                description=f"**Status:** {status}",
+                color=discord.Color.green() if self.config["anti_spam"]["enabled"] else discord.Color.gray()
+            )
+            
+            if action_msg:
+                embed.add_field(name="Action", value=action_msg, inline=False)
+            
+            # Current settings
+            config = self.config["anti_spam"]
+            embed.add_field(name="Message Limit", value=f"{config['message_threshold']} msgs", inline=True)
+            embed.add_field(name="Time Window", value=f"{config['time_window']}s", inline=True)
+            embed.add_field(name="Duplicates", value=f"{config['duplicate_threshold']} msgs", inline=True)
+            embed.add_field(name="Action", value=config['action'].upper(), inline=True)
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            bot_logger.info(f"{interaction.user} configured anti-spam")
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Erro: {e}", ephemeral=True)
+    
+    @app_commands.command(name="setup_antiraid", description="Configure anti-raid protection")
+    @app_commands.describe(
+        enable="Enable or disable anti-raid",
+        threshold="Number of joins to consider raid",
+        interval="Time interval in seconds"
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def setup_antiraid(
+        self,
+        interaction: discord.Interaction,
+        enable: Optional[bool] = None,
+        threshold: Optional[int] = None,
+        interval: Optional[int] = None
+    ):
+        """Configure anti-raid protection"""
+        try:
+            if enable is not None:
+                self.config["anti_raid"]["enabled"] = enable
+            
+            if threshold is not None:
+                self.config["anti_raid"]["join_threshold"] = threshold
+            
+            if interval is not None:
+                self.config["anti_raid"]["time_window"] = interval
+            
+            # Salvar config
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=2, ensure_ascii=False)
+            
+            status = "✅ Enabled" if self.config["anti_raid"]["enabled"] else "❌ Disabled"
+            
+            embed = discord.Embed(
+                title="🚨 Anti-Raid Configured",
+                description=f"**Status:** {status}",
+                color=discord.Color.green() if self.config["anti_raid"]["enabled"] else discord.Color.gray()
+            )
+            
+            # Current settings
+            config = self.config["anti_raid"]
+            embed.add_field(name="Threshold", value=f"{config['join_threshold']} joins", inline=True)
+            embed.add_field(name="Interval", value=f"{config['time_window']}s", inline=True)
+            embed.add_field(name="Action", value=config['action'].upper(), inline=True)
+            
+            embed.add_field(
+                name="ℹ️ How It Works",
+                value=f"If {config['join_threshold']} members join within {config['time_window']}s, "
+                      f"the bot will execute action: **{config['action']}**",
+                inline=False
+            )
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            bot_logger.info(f"{interaction.user} configured anti-raid")
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Erro: {e}", ephemeral=True)
+    
+    @app_commands.command(name="setup_nsfw", description="Configure NSFW detection")
+    @app_commands.describe(
+        enable="Enable or disable NSFW detection",
+        channel="Channel to add/remove from whitelist (allow NSFW)",
+        action="Add or remove channel from whitelist",
+        api_key="DeepAI API key (required for detection)"
+    )
+    @app_commands.choices(action=[
+        app_commands.Choice(name="Add", value="add"),
+        app_commands.Choice(name="Remove", value="remove"),
+        app_commands.Choice(name="List", value="list")
+    ])
+    @app_commands.checks.has_permissions(administrator=True)
+    async def setup_nsfw(
+        self,
+        interaction: discord.Interaction,
+        enable: Optional[bool] = None,
+        channel: Optional[discord.TextChannel] = None,
+        action: Optional[str] = None,
+        api_key: Optional[str] = None
+    ):
+        """Configure NSFW content detection"""
+        try:
+            if enable is not None:
+                self.config["nsfw_detection"]["enabled"] = enable
+            
+            if api_key:
+                self.config["nsfw_detection"]["api_key"] = api_key
+            
+            whitelisted = self.config.get("nsfw_detection", {}).get("whitelisted_channels", [])
+            
+            if action and channel:
+                if action == "add":
+                    if channel.id not in whitelisted:
+                        whitelisted.append(channel.id)
+                        self.config["nsfw_detection"]["whitelisted_channels"] = whitelisted
+                        action_msg = f"✅ {channel.mention} added to whitelist (NSFW allowed)"
+                    else:
+                        action_msg = f"ℹ️ {channel.mention} already in whitelist"
+                
+                elif action == "remove":
+                    if channel.id in whitelisted:
+                        whitelisted.remove(channel.id)
+                        self.config["nsfw_detection"]["whitelisted_channels"] = whitelisted
+                        action_msg = f"✅ {channel.mention} removed from whitelist"
+                    else:
+                        action_msg = f"ℹ️ {channel.mention} not in whitelist"
+            
+            elif action == "list":
+                if whitelisted:
+                    channels_list = "\n".join([f"<#{cid}>" for cid in whitelisted])
+                    action_msg = f"**NSFW Allowed Channels:**\n{channels_list}"
+                else:
+                    action_msg = "No channels in whitelist"
+            else:
+                action_msg = ""
+            
+            # Save config
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=2, ensure_ascii=False)
+            
+            status = "✅ Enabled" if self.config["nsfw_detection"]["enabled"] else "❌ Disabled"
+            has_key = "✅ Configured" if self.config["nsfw_detection"]["api_key"] else "❌ Not configured"
+            
+            embed = discord.Embed(
+                title="🔞 NSFW Detection Configured",
+                description=f"**Status:** {status}\n**API Key:** {has_key}",
+                color=discord.Color.green() if self.config["nsfw_detection"]["enabled"] else discord.Color.gray()
+            )
+            
+            if action_msg:
+                embed.add_field(name="Action", value=action_msg, inline=False)
+            
+            # Current settings
+            config = self.config["nsfw_detection"]
+            embed.add_field(name="Min. Confidence", value=f"{config['confidence_threshold']:.0%}", inline=True)
+            embed.add_field(name="Action", value=config['action'].upper(), inline=True)
+            
+            if not config["api_key"]:
+                embed.add_field(
+                    name="⚠️ API Key Required",
+                    value="Get one at: https://deepai.org/\n"
+                          "Use: `/setup_nsfw api_key:YOUR_KEY`",
+                    inline=False
+                )
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            bot_logger.info(f"{interaction.user} configured NSFW detection")
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
     
     @app_commands.command(name="setup_appeals", description="Configura sistema de appeals")
     @app_commands.describe(

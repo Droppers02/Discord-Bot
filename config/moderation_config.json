@@ -21,6 +21,40 @@
     "_comment_words": "Lista de palavras proibidas (case-insensitive)"
   },
   
+  "anti_spam": {
+    "enabled": false,
+    "whitelisted_channels": [],
+    "message_threshold": 5,
+    "time_window": 5,
+    "duplicate_threshold": 3,
+    "action": "timeout",
+    "timeout_duration": 300,
+    "_comment_threshold": "Número de mensagens no intervalo de tempo (segundos)",
+    "_comment_duplicate": "Mensagens idênticas seguidas para considerar spam",
+    "_comment_action": "Ação: warn, timeout, kick, ban"
+  },
+  
+  "anti_raid": {
+    "enabled": false,
+    "join_threshold": 10,
+    "time_window": 60,
+    "action": "kick",
+    "lockdown_duration": 600,
+    "_comment_threshold": "Número de joins no intervalo de tempo (segundos) para considerar raid",
+    "_comment_lockdown": "Duração do lockdown em segundos (0 = manual)"
+  },
+  
+  "nsfw_detection": {
+    "enabled": false,
+    "whitelisted_channels": [],
+    "api_key": "",
+    "confidence_threshold": 0.7,
+    "action": "delete",
+    "_comment_api": "DeepAI API key para detecção de NSFW (https://deepai.org/)",
+    "_comment_confidence": "Confiança mínima (0.0-1.0) para considerar NSFW",
+    "_comment_action": "Ação: delete, warn, timeout, kick"
+  },
+  
   "timeout_presets": {
     "1m": 60,
     "5m": 300,

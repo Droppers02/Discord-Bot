@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 class HelpPagination(discord.ui.View):
-    """View for help pagination"""
+    """View para paginação do help"""
     
     def __init__(self, embeds, timeout=180):
         super().__init__(timeout=timeout)
@@ -12,7 +12,7 @@ class HelpPagination(discord.ui.View):
         self.update_buttons()
     
     def update_buttons(self):
-        """Update button states"""
+        """Atualiza estado dos botões"""
         self.first_page.disabled = self.current_page == 0
         self.prev_page.disabled = self.current_page == 0
         self.next_page.disabled = self.current_page == self.max_pages - 1
@@ -43,28 +43,28 @@ class HelpPagination(discord.ui.View):
         await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
     
     async def on_timeout(self):
-        """Disable buttons after timeout"""
+        """Desabilita botões após timeout"""
         for item in self.children:
             item.disabled = True
 
 class HelpCog(commands.Cog):
-    """Cog for the help command"""
+    """Cog para o comando de ajuda"""
     
     def __init__(self, bot):
         self.bot = bot
 
-    @discord.app_commands.command(name="help", description="Shows all available commands")
+    @discord.app_commands.command(name="help", description="Mostra todos os comandos disponíveis")
     async def help_command(self, interaction: discord.Interaction):
-        """Help command with pagination"""
+        """Comando de ajuda com paginação"""
         
         await interaction.response.defer()
         
         embeds = []
         
-        # ===== PAGE 1: Introduction & Games =====
+        # ===== PÁGINA 1: Introdução e Jogos =====
         embed1 = discord.Embed(
-            title="🤖 EPA Bot - Games & Fun",
-            description="Use the buttons below to navigate between categories.\n"
+            title="🤖 EPA Bot - Jogos & Diversão",
+            description="Use os botões abaixo para navegar entre as categorias.\n"
                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
             color=0x5865F2
         )
@@ -72,177 +72,180 @@ class HelpCog(commands.Cog):
             embed1.set_thumbnail(url=self.bot.user.avatar.url)
         
         game_commands = [
-            "• `/tictactoe [opponent]` - Tic-Tac-Toe",
-            "• `/connect4 [opponent]` - Connect 4",
-            "• `/quiz` - Quiz questions",
-            "• `/hangman` - Hangman game",
-            "• `/blackjack <bet>` - Blackjack"
+            "• `/jogodogalo [oponente]` - Jogo do galo",
+            "• `/4emlinha [oponente]` - 4 em linha",
+            "• `/quiz` - Quiz de perguntas",
+            "• `/forca` - Jogo da forca melhorado",
+            "• `/blackjack <aposta>` - Blackjack"
         ]
-        embed1.add_field(name="🎮 **Main Games**", value="\n".join(game_commands), inline=False)
+        embed1.add_field(name="🎮 **Jogos Principais**", value="\n".join(game_commands), inline=False)
         
         game_mini = [
-            "• `/reaction` - Quick reaction",
-            "• `/math` - Math challenge",
-            "• `/memory` - Memory game"
+            "• `/reacao` - Reação rápida",
+            "• `/matematica` - Desafio matemático",
+            "• `/memoria` - Jogo de memória"
         ]
-        embed1.add_field(name="⚡ **Mini-Games**", value="\n".join(game_mini), inline=False)
+        embed1.add_field(name="⚡ **Mini-Jogos**", value="\n".join(game_mini), inline=False)
         
         game_stats = [
-            "• `/gamestats [game] [user]` - View stats",
-            "• `/gameleaderboard <game>` - Top 10"
+            "• `/gamestats [jogo] [user]` - Ver stats",
+            "• `/gameleaderboard <jogo>` - Top 10"
         ]
-        embed1.add_field(name="📊 **Statistics**", value="\n".join(game_stats), inline=False)
+        embed1.add_field(name="📊 **Estatísticas**", value="\n".join(game_stats), inline=False)
         
         fun_commands = [
-            "• `/test` - Test bot",
-            "• `/dice <sides>` - Roll dice",
-            "• `/ship <user1> <user2>` - Compatibility"
+            "• `/teste` - Testar bot",
+            "• `/dado <lados>` - Lançar dado",
+            "• `/ship <user1> <user2>` - Compatibilidade"
         ]
-        embed1.add_field(name="🎉 **Fun**", value="\n".join(fun_commands), inline=False)
+        embed1.add_field(name="🎉 **Diversão**", value="\n".join(fun_commands), inline=False)
         
-        embed1.set_footer(text="Page 1/5 • Use buttons to navigate")
+        embed1.set_footer(text="Página 1/5 • Use os botões para navegar")
         embeds.append(embed1)
         
-        # ===== PAGE 2: Economy =====
+        # ===== PÁGINA 2: Economia =====
         embed2 = discord.Embed(
-            title="🤖 EPA Bot - Economy",
+            title="🤖 EPA Bot - Economia",
             color=0x5865F2
         )
         if self.bot.user.avatar:
             embed2.set_thumbnail(url=self.bot.user.avatar.url)
         
         economy_commands = [
-            "• `/balance [@user]` - View balance",
-            "• `/daily` - Daily reward (streak bonus)",
-            "• `/work` - Work (1h cooldown)",
-            "• `/crime` - Risky crime (2h cooldown)",
-            "• `/shop` - Item shop",
-            "• `/buy <item>` - Buy item",
-            "• `/inventory [@user]` - View inventory",
-            "• `/give <user> <amount>` - Give coins",
-            "• `/leaderboard` - Top users",
-            "• `/economic_profile [@user]` - Economic profile"
+            "• `/saldo [@user]` - Ver saldo",
+            "• `/daily` - Recompensa diária (streak bonus)",
+            "• `/trabalho` - Trabalhar (cooldown 1h)",
+            "• `/crime` - Crime arriscado (cooldown 2h)",
+            "• `/loja` - Loja de itens",
+            "• `/comprar <item>` - Comprar item",
+            "• `/inventario [@user]` - Ver inventário",
+            "• `/doar <user> <valor>` - Doar coins",
+            "• `/leaderboard` - Top utilizadores",
+            "• `/perfil_economico [@user]` - Perfil económico"
         ]
-        embed2.add_field(name="💰 **Basic Economy**", value="\n".join(economy_commands), inline=False)
+        embed2.add_field(name="💰 **Economia Básica**", value="\n".join(economy_commands), inline=False)
         
         economy_advanced = [
-            "• `/buy_role <name> <color>` - Custom Role (50k)",
-            "• `/edit_role [name] [color]` - Edit role",
-            "• `/remove_role` - Remove role",
-            "• `/propose_trade <@user> <coins> <request>` - Trade",
-            "• `/pending_trades` - View trades",
-            "• `/achievements [@user]` - View achievements",
-            "• `/create_auction <item> <desc> <bid>` - Auction",
-            "• `/auctions` - View active auctions",
-            "• `/bid <id> <amount>` - Place bid"
+            "• `/comprar_role <nome> <cor>` - Custom Role (50k)",
+            "• `/editar_role [nome] [cor]` - Editar role",
+            "• `/remover_role` - Remover role",
+            "• `/propor_trade <@user> <coins> <pede>` - Trocar",
+            "• `/trades_pendentes` - Ver trades",
+            "• `/conquistas [@user]` - Ver achievements",
+            "• `/criar_leilao <item> <desc> <lance>` - Leilão",
+            "• `/leiloes` - Ver leilões ativos",
+            "• `/dar_lance <id> <valor>` - Licitar"
         ]
-        embed2.add_field(name="💎 **Advanced Economy**", value="\n".join(economy_advanced), inline=False)
+        embed2.add_field(name="💎 **Economia Avançada**", value="\n".join(economy_advanced), inline=False)
         
         events_commands = [
-            "• `/create_event <type> <hours>` - [ADMIN]",
-            "• `/active_events` - View events"
+            "• `/criar_evento <tipo> <horas>` - [ADMIN]",
+            "• `/eventos_ativos` - Ver eventos"
         ]
-        embed2.add_field(name="🎊 **Special Events**", value="\n".join(events_commands), inline=False)
+        embed2.add_field(name="🎊 **Eventos Especiais**", value="\n".join(events_commands), inline=False)
         
         social_commands = [
-            "• `/rank [user]` - View level, XP and progress",
-            "• `/like <user>` - Give reputation (1h cooldown)",
-            "• `/leaderboard <category>` - Rankings (XP/Rep/Money/Games/Msgs/Streaks)",
-            "• `/profile [user]` - View complete profile",
-            "• `/editprofile` - Customize profile",
-            "• `/badges [user]` - View earned badges",
-            "• `/marry <user>` - Propose marriage",
-            "• `/divorce` - Get divorced",
-            "• `/history [user]` - View activities",
-            "• `/streaks` - View streaks (Daily/Messages/Games)"
+            "• `/rank [user]` - Ver nível, XP e progresso",
+            "• `/like <user>` - Dar reputação (1h cooldown)",
+            "• `/leaderboard <categoria>` - Rankings (XP/Rep/Dinheiro/Jogos/Msgs/Streaks)",
+            "• `/perfil [user]` - Ver perfil completo",
+            "• `/editarperfil` - Customizar perfil",
+            "• `/badges [user]` - Ver badges conquistados",
+            "• `/casar <user>` - Pedir em casamento",
+            "• `/divorcio` - Divorciar-se",
+            "• `/historico [user]` - Ver atividades",
+            "• `/streaks` - Ver streaks (Daily/Mensagens/Jogos)"
         ]
-        embed2.add_field(name="⭐ **Advanced Social**", value="\n".join(social_commands), inline=False)
+        embed2.add_field(name="⭐ **Social Avançado**", value="\n".join(social_commands), inline=False)
         
         social_new = [
-            "• `/friends <action> [user]` - Friends system",
-            "• `/friends_accept <user>` - Accept request",
-            "• `/friends_reject <user>` - Reject request",
-            "• `/marriage_upgrade <tier>` - Upgrade ring (1-5)",
-            "• `/activity [period] [user]` - Activity charts"
+            "• `/amigos <acao> [user]` - Sistema de amizades",
+            "• `/amigos_aceitar <user>` - Aceitar pedido",
+            "• `/amigos_rejeitar <user>` - Rejeitar pedido",
+            "• `/casamento_upgrade <tier>` - Upgrade anel (1-5)",
+            "• `/atividade [periodo] [user]` - Gráficos de atividade"
         ]
-        embed2.add_field(name="👥 **New Features**", value="\n".join(social_new), inline=False)
+        embed2.add_field(name="👥 **Funcionalidades Novas**", value="\n".join(social_new), inline=False)
         
-        embed2.set_footer(text="Page 2/5 • Use buttons to navigate")
+        embed2.set_footer(text="Página 2/5 • Use os botões para navegar")
         embeds.append(embed2)
         
-        # ===== PAGE 3: Music & Utilities =====
+        # ===== PÁGINA 3: Música & Utilidades =====
         embed3 = discord.Embed(
-            title="🤖 EPA Bot - Music & Utilities",
+            title="🤖 EPA Bot - Música & Utilidades",
             color=0x5865F2
         )
         if self.bot.user.avatar:
             embed3.set_thumbnail(url=self.bot.user.avatar.url)
         
         music_commands = [
-            "• `/play <song>` - Play music",
-            "• `/pause` - Pause",
-            "• `/resume` - Resume",
-            "• `/skip` - Next song",
-            "• `/stop` - Stop and clear queue",
-            "• `/queue` - View queue",
-            "• `/nowplaying` - Current song"
+            "• `/play <música>` - Tocar música",
+            "• `/pause` - Pausar",
+            "• `/resume` - Retomar",
+            "• `/skip` - Próxima música",
+            "• `/stop` - Parar e limpar fila",
+            "• `/queue` - Ver fila",
+            "• `/nowplaying` - Música atual"
         ]
-        embed3.add_field(name="🎵 **Music**", value="\n".join(music_commands), inline=False)
+        embed3.add_field(name="🎵 **Música**", value="\n".join(music_commands), inline=False)
         
         utility_commands = [
-            "• `/avatar [user]` - View avatar",
-            "• `/emoji <emoji>` - Enlarge custom emoji",
-            "• `/emojiinfo <emoji>` - Emoji technical info",
-            "• `/userinfo [user]` - User info",
-            "• `/serverinfo` - Server info",
-            "• `/botinfo` - Bot info",
-            "• `/reminder` - Create reminder",
-            "• `/poll` - Create poll",
-            "• `/announcement` - [ADMIN] Schedule announcement"
+            "• `/avatar [user]` - Ver avatar",
+            "• `/emoji <emoji>` - Ampliar emoji customizado",
+            "• `/emojiinfo <emoji>` - Info técnica de emoji",
+            "• `/userinfo [user]` - Info de utilizador",
+            "• `/serverinfo` - Info do servidor",
+            "• `/botinfo` - Info do bot",
+            "• `/lembrete` - Criar lembrete",
+            "• `/poll` - Criar votação",
+            "• `/anuncio` - [ADMIN] Agendar anúncio"
         ]
-        embed3.add_field(name="🔧 **Utilities**", value="\n".join(utility_commands), inline=False)
+        embed3.add_field(name="🔧 **Utilidades**", value="\n".join(utility_commands), inline=False)
         
-        embed3.set_footer(text="Page 3/5 • Use buttons to navigate")
+        embed3.set_footer(text="Página 3/5 • Use os botões para navegar")
         embeds.append(embed3)
         
-        # ===== PAGE 4: Moderation =====
+        # ===== PÁGINA 4: Moderação =====
         embed4 = discord.Embed(
-            title="🤖 EPA Bot - Moderation",
+            title="🤖 EPA Bot - Moderação",
             color=0x5865F2
         )
         if self.bot.user.avatar:
             embed4.set_thumbnail(url=self.bot.user.avatar.url)
         
         moderation_commands = [
-            "• `/kick <user> [reason]` - Kick",
-            "• `/ban <user> [reason]` - Ban",
-            "• `/unban <user_id>` - Unban",
+            "• `/kick <user> [razão]` - Expulsar",
+            "• `/ban <user> [razão]` - Banir",
+            "• `/unban <user_id>` - Desbanir",
             "• `/timeout <user> <preset>` - Timeout",
-            "• `/untimeout <user>` - Remove timeout",
-            "• `/warn <user> <reason>` - Warn",
-            "• `/warnings <user>` - View warnings"
+            "• `/untimeout <user>` - Remover timeout",
+            "• `/warn <user> <razão>` - Avisar",
+            "• `/warnings <user>` - Ver avisos"
         ]
-        embed4.add_field(name="🛡️ **Basic Moderation**", value="\n".join(moderation_commands), inline=False)
+        embed4.add_field(name="🛡️ **Moderação Básica**", value="\n".join(moderation_commands), inline=False)
         
         clear_commands = [
-            "• `/clear amount <number>` - Clear N messages",
-            "• `/clear from <msg_id> [limit]` - From a message onwards",
-            "• `/clear between <msg1> <msg2>` - Between two messages"
+            "• `/clear quantidade <número>` - Limpar N mensagens",
+            "• `/clear apartir <msg_id> [limite]` - A partir de mensagem",
+            "• `/clear intervalo <msg1> <msg2>` - Entre duas mensagens"
         ]
-        embed4.add_field(name="🗑️ **Message Cleanup**", value="\n".join(clear_commands), inline=False)
+        embed4.add_field(name="🗑️ **Limpeza de Mensagens**", value="\n".join(clear_commands), inline=False)
         
         moderation_advanced = [
             "• `/setup_modlogs <channel>` - Moderation logs",
             "• `/setup_wordfilter` - Word filter",
             "• `/setup_quarantine` - Quarantine system",
+            "• `/setup_antispam` - Anti-spam with whitelist",
+            "• `/setup_antiraid` - Anti-raid protection",
+            "• `/setup_nsfw` - NSFW detection",
             "• `/setup_appeals` - Appeals system"
         ]
         embed4.add_field(name="🔧 **Advanced Moderation**", value="\n".join(moderation_advanced), inline=False)
         
-        embed4.set_footer(text="Page 4/5 • Use buttons to navigate")
+        embed4.set_footer(text="Página 4/5 • Use os botões para navegar")
         embeds.append(embed4)
         
-        # ===== PAGE 5: Tickets & Admin =====
+        # ===== PÁGINA 5: Tickets & Admin =====
         embed5 = discord.Embed(
             title="🤖 EPA Bot - Tickets & Admin",
             color=0x5865F2
@@ -251,42 +254,42 @@ class HelpCog(commands.Cog):
             embed5.set_thumbnail(url=self.bot.user.avatar.url)
         
         tickets_commands = [
-            "• `/setup_tickets` - [ADMIN] Configure panel",
-            "• `/rename <name>` - [STAFF] Rename ticket"
+            "• `/setup_tickets` - [ADMIN] Configurar painel",
+            "• `/rename <nome>` - [STAFF] Renomear ticket"
         ]
         embed5.add_field(name="🎫 **Tickets**", value="\n".join(tickets_commands), inline=False)
         
         admin_commands = [
-            "• `/setup_autoroles` - Configure auto-roles",
-            "• `/setup_verification` - 2FA system",
-            "• `/reload <cog>` - Reload module",
-            "• `/sync` - Sync commands",
-            "• `/status` - Bot status",
-            "• `/ping` - Latency"
+            "• `/setup_autoroles` - Configurar auto-roles",
+            "• `/setup_verificacao` - Sistema 2FA",
+            "• `/reload <cog>` - Recarregar módulo",
+            "• `/sync` - Sincronizar comandos",
+            "• `/status` - Status do bot",
+            "• `/ping` - Latência"
         ]
         embed5.add_field(name="👑 **Admin**", value="\n".join(admin_commands), inline=False)
         
         info = [
-            "🔹 **Games:** 9 games with stats and leaderboards",
-            "🔹 **Economy:** Complete coin system",
-            "🔹 **Social:** Levels, XP and reputation",
-            "🔹 **Tickets:** 5 categories available",
-            "🔹 **Author:** Droppers 🇵🇹"
+            "🔹 **Jogos:** 9 jogos com stats e leaderboards",
+            "🔹 **Economia:** Sistema completo de moedas",
+            "🔹 **Social:** Níveis, XP e reputação",
+            "🔹 **Tickets:** 5 categorias disponíveis",
+            "🔹 **Autor:** Droppers 🇵🇹"
         ]
         embed5.add_field(name="ℹ️ **Info**", value="\n".join(info), inline=False)
         
         total_commands = len([cmd for cmd in self.bot.tree.get_commands()])
         embed5.set_footer(
-            text=f"Page 5/5 • {total_commands} Commands • {len(self.bot.guilds)} Server(s)",
+            text=f"Página 5/5 • {total_commands} Comandos • {len(self.bot.guilds)} Servidor(es)",
             icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
         )
         embeds.append(embed5)
         
-        # Create pagination view and send
+        # Criar view de paginação e enviar
         view = HelpPagination(embeds)
         await interaction.followup.send(embed=embeds[0], view=view)
 
 
 async def setup(bot):
-    """Function to load the cog"""
+    """Função para carregar o cog"""
     await bot.add_cog(HelpCog(bot))
