@@ -36,7 +36,7 @@ Bot Discord completo com sistema de economia, jogos, música, moderação, ticke
 - **🎵 Música** - Player de música com fila e controles
 - **⭐ Social Avançado** - XP, níveis, perfis customizáveis, badges, casamentos, streaks e histórico
 - **🎫 Tickets** - Sistema profissional de suporte com categorias e gestão
-- **🛡️ Moderação** - Sistema avançado com logs, filtro de palavras, quarentena, appeals e timeout presets
+- **🛡️ Moderação** - Sistema avançado com logs, filtro de palavras, quarentena, appeals, anti-spam, anti-raid e NSFW detection
 - **📊 Monitoramento** - Status do bot, servidor e utilizadores
 - **🔧 Utilidades Avançadas** - Lembretes, Polls, Anúncios, Auto-roles (3 painéis), Verificação 2FA
 
@@ -657,6 +657,29 @@ O bot possui um sistema social completo com XP, níveis, perfis customizáveis, 
 - Appeals enviados para canal específico
 - Processo organizado para moderação
 
+**Auto-Moderação:**
+
+```
+/setup_antispam [ativar] [canal] [ação]    - Anti-spam com whitelist de canais
+/setup_antiraid [ativar] [threshold] [intervalo] - Proteção anti-raid
+/setup_nsfw [ativar] [canal] [ação] [api_key]   - Detecção de NSFW (DeepAI)
+```
+
+- **Anti-Spam**: Deteção de spam por mensagens rápidas e duplicadas
+  - Whitelist de canais (add/remove/list)
+  - Threshold configurável de mensagens
+  - Ações automáticas: warn, timeout, kick
+  
+- **Anti-Raid**: Monitoramento de joins suspeitos
+  - Threshold configurável (X membros em Y segundos)
+  - Ação automática ao detetar raid
+  - Logs detalhados com timestamps
+
+- **NSFW Detection**: Análise de imagens com IA
+  - Integração com DeepAI API
+  - Whitelist de canais NSFW permitidos
+  - Confidence threshold ajustável
+  - Ações: delete, warn, timeout, kick
 ### 📊 Monitoramento
 
 ```
