@@ -1,991 +1,380 @@
-# 🤖 EPA BOT
+# 🤖 EPA BOT - Discord Community Bot (English Version)
 
-> **⚠️ AVISO IMPORTANTE**
+> A comprehensive Discord bot with games, economy, music, moderation, and social features.
 >
-> **Este bot requer conhecimentos de programação para configurar e usar.**  
-> **Não é fornecido suporte técnico. Use por sua conta e risco.**
+> **Branch: `en` (English) | Main branch: `main` (Portuguese)**
 
-Bot Discord completo com sistema de economia, jogos, música, moderação, tickets e muito mais!
-
-**Autor:** Droppers  
-**Linguagem:** Python 3.10+
-
-> 🌍 **English version available!** → [Switch to branch `en`](https://github.com/Droppers02/Discord-Community-Bot/tree/en) or see [README_EN.md](https://github.com/Droppers02/Discord-Community-Bot/blob/en/README_EN.md)
+[![Discord.py](https://img.shields.io/badge/discord.py-2.4.0-blue)](https://github.com/Rapptz/discord.py)
+[![Python](https://img.shields.io/badge/python-3.10+-green)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-orange)](LICENSE)
 
 ---
 
-## 📋 Índice
+## 📋 Table of Contents
 
-- [Características](#-características)
-- [Requisitos](#-requisitos)
-- [Instalação](#-instalação)
-- [Configuração](#%EF%B8%8F-configuração)
-- [Comandos](#-comandos)
-- [Estrutura](#-estrutura)
-- [Tecnologias](#%EF%B8%8F-tecnologias)
-- [Avisos Legais](#%EF%B8%8F-avisos-legais)
-
----
-
-## ✨ Características
-
-### 🎮 Sistemas Principais
-
-- **💰 Advanced Economy** - Coins, shop, custom roles, trading, auctions, achievements, special events
-- **🎲 Games** - Interactive games (blackjack, slots, crash, coinflip, etc.)
-- **🎵 Music** - Music player with queue and controls
-- **⭐ Advanced Social** - XP, levels, customizable profiles, badges, marriages, streaks and history
-- **🎫 Tickets** - Professional support system with categories and management
-- **🛡️ Moderation** - Advanced system with logs, word filter, quarantine, appeals, anti-spam, anti-raid and NSFW detection
-- **📊 Monitoring** - Bot, server and user status
-- **🔧 Advanced Utilities** - Reminders, Polls, Announcements, Auto-roles (3 panels), 2FA Verification
-
-### 🚀 Funcionalidades Avançadas
-
-- ✅ Database SQLite com migração automática
-- ✅ Sistema de backup automático (24h)
-- ✅ Logging avançado com rotação de ficheiros
-- ✅ Embeds padronizados e profissionais
-- ✅ Sistema de paginação para listas
-- ✅ Comandos Slash (/)
-- ✅ Views e Buttons interativos
-- ✅ Gestão de erros centralizada
-- ✅ Cooldowns visuais com barras de progresso
-- ✅ Sistema de trading P2P
-- ✅ Leilões de itens raros
-- ✅ Achievements com recompensas
-- ✅ Eventos especiais com multiplicadores
-- ✅ Configuração via variáveis de ambiente
+- [Features](#-features)
+- [Installation](#-installation)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Commands](#-commands)
+- [Internationalization](#-internationalization)
+- [Development](#-development)
+- [License](#-license)
 
 ---
 
-## 📦 Requisitos
+## ✨ Features
 
-### Software Necessário
+### 🎮 Games (9 Games)
 
-- **Python** 3.10 ou superior
-- **FFmpeg** (para comandos de música)
-- **Git** (para clonar o repositório)
+- **Tic-Tac-Toe** - Challenge players with 30s turn timer
+- **Connect 4** - 4-in-a-row with 45s turn timer
+- **Hangman** - Improved with text detection
+- **Blackjack** - Casino-style card game
+- **Quiz** - Trivia questions with rewards
+- **Reaction** - Quick reaction test (15s)
+- **Math** - Math challenges (20s)
+- **Memory** - Number sequence memory (120s)
+- **Statistics & Leaderboards** - Track wins, losses, and rankings
 
-### Conhecimentos Requeridos
+### 💰 Advanced Economy
 
-⚠️ **IMPORTANTE: Este bot NÃO é plug-and-play!**
+- **Basic Economy**
 
-Precisas ter conhecimentos em:
+  - Balance, daily rewards with streak bonuses
+  - Work and crime commands with cooldowns
+  - Item shop and inventory
+  - Coin transfers between users
 
-- Python (básico a intermediário)
-- Discord API e discord.py
-- Gestão de bases de dados SQLite
-- Variáveis de ambiente
-- Linha de comando (terminal/cmd)
-- Configuração de tokens e IDs do Discord
+- **Advanced Features** (v2.6.0)
+  - Custom roles (50k coins) - Buy and customize personal roles
+  - P2P Trading system - Trade coins and items
+  - Achievements system - Unlock and display badges
+  - Auction system - Create and bid on auctions
+  - Special events - Server-wide multiplier events
 
-**Se não tens estes conhecimentos, este bot NÃO é para ti!**
+### 👥 Social System
+
+- **Leveling** - XP system with ranks
+- **Reputation** - Like system (1h cooldown)
+- **Profiles** - Customizable user profiles
+- **Badges** - Earned achievements display
+- **Marriage** - Marry and divorce other users
+- **Streaks** - Track daily, message, and game streaks
+- **Leaderboards** - XP and Reputation rankings
+
+### 🎵 Music System
+
+- YouTube support (yt-dlp)
+- Queue management
+- Playback controls (pause, resume, skip, stop)
+- Now playing display
+
+### 🛡️ Moderation
+
+- **Basic**: Kick, ban, timeout, warnings
+- **Advanced**: Auto-moderation, word filter, quarantine system, appeals
+- **Auto-Moderation** (v2.7.1):
+  - Anti-spam with channel whitelisting
+  - Anti-raid protection with join monitoring
+  - NSFW detection with AI (DeepAI integration)
+- **Logging**: Moderation action logs
+
+### 🎫 Ticket System
+
+- 5 customizable categories
+- Staff panel with controls
+- Automatic channel management
+
+### 🔧 Utilities
+
+- **Avatar & User Info** - View avatars and profiles
+- **Emoji Tools** (v2.6.1)
+  - `/emoji` - Enlarge custom emojis up to 1024x1024
+  - `/emojiinfo` - Technical emoji information
+- **Server Info** - Comprehensive server statistics
+- **Reminders** - Schedule reminders
+- **Polls** - Create interactive polls
+- **Announcements** - Schedule announcements
 
 ---
 
-## 🔧 Instalação
+## 🚀 Installation
 
-### 1. Clonar o Repositório
+### Prerequisites
+
+- Python 3.10 or higher
+- FFmpeg (for music features)
+- Discord Bot Token
+
+### Steps
+
+1. **Clone the repository**
 
 ```bash
 git clone https://github.com/Droppers02/Discord-Community-Bot.git
 cd Discord-Community-Bot
 ```
 
-### 2. Instalar Dependências Python
-
-**Windows:**
+2. **Switch to English branch**
 
 ```bash
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+git checkout en
 ```
 
-**Linux/Mac:**
+3. **Install dependencies**
 
 ```bash
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-**Dependências incluídas:**
+4. **Configure environment**
+   Create a `.env` file:
 
-- `discord.py>=2.4.0` - Biblioteca principal do Discord
-- `aiosqlite>=0.20.0` - Base de dados assíncrona
-- `python-dotenv>=1.0.0` - Gestão de variáveis de ambiente
-- `Pillow>=10.0.0` - Manipulação de imagens
-- `psutil>=5.9.0` - Monitoramento do sistema
-- `aiofiles>=23.0.0` - Operações de ficheiros assíncronas
-- `yt-dlp>=2024.0.0` - Download de música do YouTube
-- `PyNaCl>=1.5.0` - Codec de áudio para Discord
+```env
+DISCORD_TOKEN=your_bot_token_here
+BOT_LANGUAGE=en
 
-### 3. Instalar FFmpeg
+# Optional
+SERVER_ID=your_server_id
+MOD_ROLE_ID=your_moderator_role_id
+TICKET_CATEGORY_ID=your_ticket_category_id
+OWNER_IDS=owner_id_1,owner_id_2
 
-⚠️ **OBRIGATÓRIO** para comandos de música funcionar!
+# FFmpeg (if not in PATH)
+FFMPEG_PATH=path/to/ffmpeg/ffmpeg.exe
 
-**Windows:**
-
-1. Baixe: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
-2. Extraia o conteúdo
-3. Copie os ficheiros `ffmpeg.exe`, `ffplay.exe` e `ffprobe.exe` para `bin/ffmpeg/`
-4. **OU** adicione FFmpeg ao PATH do sistema
-
-**Linux (Ubuntu/Debian):**
-
-```bash
-sudo apt update
-sudo apt install ffmpeg
+# Logging
+LOG_LEVEL=INFO
 ```
 
-**Mac:**
-
-```bash
-brew install ffmpeg
-```
-
-**Verificar instalação:**
-
-```bash
-ffmpeg -version
-```
-
-### 4. Criar Estrutura de Pastas
-
-O bot precisa destas pastas (criadas automaticamente na primeira execução):
-
-```bash
-mkdir data logs bin/ffmpeg
-```
-
-### 5. Executar o Bot
-
-**Windows:**
+5. **Run the bot**
 
 ```bash
 python main.py
 ```
 
-**Linux/Mac:**
+---
 
-```bash
-python3 main.py
+## ⚙️ Configuration
+
+### Language Settings
+
+The bot supports two languages:
+
+- **English (`en`)** - This branch
+- **Portuguese (`pt`)** - Main branch
+
+To change language, set in `.env`:
+
+```env
+BOT_LANGUAGE=en
 ```
 
-**Primeira execução:**
+### Database
 
-- O bot criará automaticamente a base de dados SQLite
-- Fará backup dos ficheiros JSON existentes (se houver)
-- Migrará dados antigos para o novo sistema
+SQLite database automatically created on first run:
 
-**O bot está pronto quando ver:**
+- `database.db` - Main database
+- 9 economy tables (custom_roles, trades, achievements, etc.)
+- Automatic JSON migration from legacy versions
 
-```
-✅ Bot iniciado como: NomeDoBot#1234
-✅ Conectado a X servidor(es)
-✅ X comandos sincronizados
+### Music Configuration
+
+```env
+# Music settings
+MUSIC_TIMEOUT=15
+YTDL_FORMAT=bestaudio
+ENABLE_MUSIC_CACHE=True
+MUSIC_DEBUG=False
 ```
 
 ---
 
-## 🚀 Deployment / Hosting
+## 📚 Commands
 
-### Railway.app (Recomendado) ⭐
+Use `/help` in Discord to see all commands with pagination.
 
-O bot está otimizado para deploy na **Railway** com plano grátis generoso (512MB RAM, $5 crédito mensal).
+### Quick Reference
 
-**Ficheiros de configuração:**
-
-- `railway.json` - Configuração do deploy
-- `Procfile` - Comando de início
-- `runtime.txt` - Versão do Python
-- `nixpacks.toml` - Pacotes do sistema (FFmpeg)
-
-**Passo a passo:**
-
-1. **Criar conta:** Vai a [railway.app](https://railway.app) e cria conta com GitHub
-2. **Novo Projeto:** Clica em "New Project" → "Deploy from GitHub repo"
-3. **Selecionar Repo:** Escolhe o repositório `Discord-Community-Bot`
-4. **Variáveis de Ambiente:** No painel do projeto, vai a "Variables" e adiciona:
-   ```
-   DISCORD_TOKEN=teu_token_aqui
-   SERVER_ID=id_do_servidor
-   MOD_ROLE_ID=id_da_role_moderador
-   TICKET_CATEGORY_ID=id_da_categoria_tickets
-   ```
-5. **Deploy Automático:** Railway fará deploy automaticamente!
-
-**✅ Vantagens da Railway:**
-
-- 512MB RAM (5x mais que Discloud)
-- $5 crédito grátis por mês (~500 horas)
-- Deploy automático via GitHub
-- FFmpeg incluído (comandos de música funcionam)
-- Logs em tempo real
-- Restart automático
-
-**Monitorização:**
-
-- Acessa os logs em tempo real no painel
-- Vê uso de RAM e CPU
-- Deploy automático a cada push no GitHub
+| Category             | Key Commands                                                      |
+| -------------------- | ----------------------------------------------------------------- |
+| **Games**            | `/tictactoe`, `/connect4`, `/hangman`, `/blackjack`, `/quiz`      |
+| **Economy**          | `/balance`, `/daily`, `/work`, `/shop`, `/buy`                    |
+| **Advanced Economy** | `/buy_role`, `/propose_trade`, `/create_auction`, `/achievements` |
+| **Social**           | `/rank`, `/like`, `/profile`, `/marry`, `/badges`                 |
+| **Music**            | `/play`, `/pause`, `/skip`, `/queue`                              |
+| **Moderation**       | `/kick`, `/ban`, `/timeout`, `/warn`, `/clear`                    |
+| **Utilities**        | `/avatar`, `/emoji`, `/emojiinfo`, `/serverinfo`                  |
+| **Tickets**          | `/setup_tickets`, `/rename`                                       |
+| **Admin**            | `/setup_autoroles`, `/reload`, `/sync`, `/ping`                   |
 
 ---
 
-### Discloud (Alternativa)
+## 🌍 Internationalization
 
-O bot também suporta **Discloud** com o ficheiro `discloud.config`:
+### Branch Structure
 
-**Passo a passo:**
-
-1. Cria uma conta em [discloud.app](https://discloud.app)
-2. Faz upload do bot (ZIP ou conecta ao GitHub)
-3. No painel, adiciona as variáveis de ambiente:
-   - `DISCORD_TOKEN`
-   - `SERVER_ID`
-   - `MOD_ROLE_ID`
-   - `TICKET_CATEGORY_ID`
-4. Inicia o bot
-
-**⚠️ Limitações do Plano Grátis:**
-
-- 100MB RAM (muito limitado)
-- Comandos de música podem causar problemas
-- Considera desativar o cog `music.py`
-
----
-
-### Outras Opções de Hosting
-
-- **VPS (Máximo controlo):** DigitalOcean ($4/mês), Linode, AWS EC2
-- **Render.com:** Alternativa gratuita similar à Railway
-- **PebbleHost:** Especializado em bots Discord ($1/mês)
-- **Oracle Cloud:** VPS grátis permanente (requer cartão)
-
----
-
-## 📝 Configuração de IDs Personalizados
-
-O bot utiliza um sistema de configuração em JSON para permitir personalização de roles e canais sem modificar o código.
-
-### Passo 1: Copiar o Ficheiro de Exemplo
-
-```bash
-cp config/utilities_config.example.json config/utilities_config.json
+```
+main (Portuguese) ←→ en (English)
 ```
 
-Ou copia manualmente o ficheiro `utilities_config.example.json` e renomeia para `utilities_config.json`.
+### Translation System
 
-### Passo 2: Obter os IDs do Discord
+The bot uses a custom i18n system located in `config/i18n.py`:
 
-**Ativar o Modo de Desenvolvedor:**
+```python
+from config.i18n import get_translator
 
-1. Discord → Configurações do Utilizador → Avançado
-2. Ativar "Modo de desenvolvedor"
+# Get translator for current language
+t = get_translator("en")
 
-**Copiar IDs:**
+# Use translations
+title = t("games.tictactoe.name")  # "Tic-Tac-Toe"
+message = t("common.insufficient_funds", balance=1000)  # Formatted string
+```
 
-- **Roles:** Clique direito na role → Copiar ID
-- **Canais:** Clique direito no canal → Copiar ID
+### Adding Translations
 
-### Passo 3: Editar o Ficheiro de Configuração
+Edit `config/i18n.py` and add keys to both `en` and `pt` dictionaries:
 
-Abre `config/utilities_config.json` e preenche com os IDs do teu servidor:
-
-```json
-{
-  "verification": {
-    "verified_role_id": 123456789012345678
-  },
-  "autoroles": {
-    "games": {
-      "gacha": 123456789012345678,
-      "csgo": 123456789012345678,
-      "valorant": 123456789012345678,
-      ...
+```python
+TRANSLATIONS = {
+    "en": {
+        "category": {
+            "key": "English text"
+        }
     },
-    "platforms": {
-      "playstation": 123456789012345678,
-      "xbox": 123456789012345678,
-      ...
-    },
-    "dm_preferences": {
-      "can_dm": 123456789012345678,
-      "ask_dm": 123456789012345678,
-      "no_dm": 123456789012345678
+    "pt": {
+        "category": {
+            "key": "Texto em português"
+        }
     }
-  },
-  "channels": {
-    "autoroles_channel": 123456789012345678,
-    "verification_channel": 123456789012345678
-  }
 }
 ```
 
-### Passo 4: Reiniciar o Bot
-
-Após editar o ficheiro, reinicia o bot para carregar as novas configurações.
-
-**Notas Importantes:**
-
-- Use `0` para desativar roles/botões específicos
-- O arquivo `utilities_config.json` não é commitado no git (está no .gitignore)
-- Mantenha seus IDs privados e seguros
-
 ---
 
-## 🐛 Resolução de Problemas
+## 👨‍💻 Development
 
-### Bot não inicia
-
-- ✅ Verificar se o token está correto no `.env`
-- ✅ Verificar se todas as dependências estão instaladas
-- ✅ Verificar a versão do Python (`python --version`)
-
-### Comandos de música não funcionam
-
-- ✅ Verificar se FFmpeg está instalado (`ffmpeg -version`)
-- ✅ Verificar se FFmpeg está no PATH ou em `bin/ffmpeg/`
-
-### Base de dados não funciona
-
-- ✅ Verificar permissões da pasta `data/`
-- ✅ Deletar `data/epa_bot.db` e reiniciar (⚠️ perde dados)
-
-### Comandos não aparecem no Discord
-
-- ✅ Aguardar até 1 hora (comandos globais)
-- ✅ Verificar permissões do bot no servidor
-- ✅ Reiniciar o bot e o Discord
-
----
-
-## ⚙️ Configuração
-
-### 1. Criar Ficheiro .env
-
-Copie o `.env.example` e renomeie para `.env`:
-
-```env
-# Token do Discord Bot
-DISCORD_TOKEN=SEU_TOKEN_AQUI
-
-# IDs do Servidor (configure os seus)
-SERVER_ID=0
-MOD_ROLE_ID=0
-TICKET_CATEGORY_ID=0
-
-# OpenAI (opcional)
-OPENAI_TOKEN=
-
-# Configurações do Bot
-COMMAND_PREFIX=!
-```
-
-### 2. Obter Token do Discord
-
-1. Acesse: https://discord.com/developers/applications
-2. Crie uma nova aplicação
-3. Vá em "Bot" → "Add Bot"
-4. Copie o token em "TOKEN"
-5. **NUNCA compartilhe este token!**
-
-### 3. Obter IDs do Discord
-
-**ID do Servidor:**
-
-- Ative o Modo Desenvolvedor (Configurações → Avançado)
-- Clique com botão direito no servidor → Copiar ID
-
-**ID da Role de Moderação:**
-
-- Clique com botão direito na role → Copiar ID
-
-**ID da Categoria de Tickets:**
-
-- Clique com botão direito na categoria → Copiar ID
-
-### 4. Configurar Permissões do Bot
-
-URL de convite (substitua CLIENT_ID):
+### Project Structure
 
 ```
-https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=8&scope=bot%20applications.commands
-```
-
-**Permissões Necessárias:**
-
-- Administrator (recomendado)
-- OU: Manage Channels, Manage Roles, Kick Members, Ban Members, Manage Messages, etc.
-
----
-
-## 🎯 Comandos
-
-### 💰 Economia
-
-**Básico:**
-
-```
-/saldo [@user]            - Ver saldo de EPA Coins
-/daily                    - Recompensa diária (streak bonus)
-/trabalho                 - Trabalhar por coins (cooldown: 1h)
-/crime                    - Crime arriscado (cooldown: 2h)
-/doar <@user> <valor>     - Doar coins a alguém
-/perfil [@user]           - Ver perfil económico completo
-```
-
-**Loja & Itens:**
-
-```
-/loja                     - Ver itens disponíveis
-/comprar <item>           - Comprar item da loja
-/inventario [@user]       - Ver inventário
-```
-
-**Economia Avançada:**
-
-```
-/comprar_role <nome> <cor> - Comprar Custom Role (50k coins)
-/editar_role [nome] [cor]  - Editar a tua Custom Role
-/remover_role              - Remover Custom Role
-/propor_trade <@user> <coins_tuas> <coins_deles> - Propor troca
-/trades_pendentes          - Ver trades pendentes
-/conquistas [@user]        - Ver achievements desbloqueados
-```
-
-**Leilões:**
-
-```
-/criar_leilao <nome> <desc> <lance> [compra_ja] [horas] - Criar leilão
-/leiloes                   - Ver leilões ativos
-/dar_lance <id> <valor>    - Dar lance em leilão
-```
-
-**Eventos (Admin):**
-
-```
-/criar_evento <tipo> <horas> [multiplicador] - Criar evento especial
-/eventos_ativos             - Ver eventos ativos
-```
-
-### 🎲 Jogos de Aposta
-
-```
-/blackjack <aposta>      - Jogar blackjack
-/slots <aposta>          - Slot machine
-/coinflip <aposta> <lado> - Cara ou coroa
-/crash <aposta>          - Jogo crash
-/roulette <aposta> <tipo> - Roleta
-/mines <aposta>          - Campo minado
-```
-
-### 🎮 Jogos Clássicos
-
-```
-/galo [@adversário]      - Jogo do Galo (Tic-Tac-Toe)
-/4emlinha [@adversário]  - 4 em Linha (Connect Four)
-/forca                   - Jogo da Forca (melhorado com botões)
-/quiz                    - Quiz de conhecimentos
-```
-
-### ⚡ Mini-Jogos de Reação
-
-```
-/reacao                  - Clica no emoji mais rápido!
-/matematica              - Resolve cálculos matemáticos
-/memoria                 - Jogo de memória com emojis
-```
-
-### 📊 Estatísticas de Jogos
-
-```
-/gamestats [@user] [jogo] - Ver estatísticas de jogos
-/gameleaderboard <jogo>   - Top 10 jogadores por jogo
-```
-
-**Jogos disponíveis para stats:** `galo`, `4emlinha`, `forca`, `quiz`, `blackjack`, `reacao`, `matematica`, `memoria`
-
-### 🎵 Música
-
-```
-/play <música>           - Tocar música
-/pause                   - Pausar
-/resume                  - Retomar
-/skip                    - Próxima música
-/stop                    - Parar e limpar fila
-/queue                   - Ver fila
-/nowplaying              - Música atual
-/volume <0-100>          - Ajustar volume
-```
-
-### ⭐ Sistema Social Avançado
-
-O bot possui um sistema social completo com XP, níveis, perfis customizáveis, badges, casamentos e histórico de atividades.
-
-**Comandos Básicos:**
-
-```
-/rank [@user]            - Ver nível, XP e progresso
-/like <@user>            - Dar reputação (cooldown: 1h)
-/leaderboard [tipo]      - Rankings (XP ou Reputação)
-```
-
-**Sistema de Perfis:**
-
-```
-/perfil [@user]          - Ver perfil completo com badges e casamento
-/editarperfil            - Customizar bio, pronomes, aniversário, jogo favorito
-/badges [@user]          - Ver todos os badges conquistados
-```
-
-**Perfis incluem:**
-
-- 📊 Estatísticas (Level, XP, Reputação, Mensagens)
-- 🎨 Customização (Bio, Cor do embed, Banner, Pronomes)
-- 🏅 Badges conquistados
-- 💍 Status de casamento
-- 🎮 2 campos personalizados
-
-**Sistema de Casamento:**
-
-```
-/casar <@user>           - Pedir utilizador em casamento
-/divorcio                - Divorciar-se (requer confirmação)
-```
-
-- Propostas interativas com botões aceitar/recusar
-- Badge 💍 automático ao casar
-- Exibição de parceiro no perfil
-- Sistema de ring tiers (💍/💎)
-
-**Histórico e Streaks:**
-
-```
-/historico [@user]       - Ver últimas 20 atividades
-/streaks                 - Ver streaks (Daily, Mensagens, Jogos)
-/top_categoria [cat]     - Top por Level, Mensagens, Reputação, Badges, Streak
-```
-
-**Badges Automáticos:**
-
-- 🔟 Nível 10
-- 🎖️ Nível 25
-- ⭐ Nível 50
-- 👑 Nível 100
-- 💍 Casamento
-
-**Sistema de XP:**
-
-- 15-25 XP por mensagem (cooldown: 60s)
-- Cálculo: Level = ⌊√(XP/100)⌋ + 1
-- Notificações automáticas de level up
-- Streaks de mensagens registados
-- Tudo armazenado em SQLite
-
-### 🎫 Tickets
-
-```
-/setup_tickets           - [ADMIN] Configurar painel com categorias
-/rename <novo_nome>      - [STAFF] Renomear ticket atual
-```
-
-**Funcionalidades:**
-
-- 5 categorias: Suporte Técnico, Dúvidas, Reports, Sugestões, Outros
-- Limite de 1 ticket por utilizador
-- Formato: 🎫┃username-0001 (ID sequencial)
-- Botão para fechar tickets
-- Sistema de permissões automático
-
-### 🛡️ Moderação
-
-**Comandos Básicos:**
-
-```
-/kick <@user> [razão]    - Expulsar membro
-/ban <@user> [razão]     - Banir membro
-/unban <user_id>         - Desbanir
-/timeout <@user> <preset> - Timeout com presets (1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 3d, 1w)
-/untimeout <@user>       - Remover timeout
-/warn <@user> <razão>    - Avisar utilizador
-/warnings <@user>        - Ver avisos
-/clear <quantidade>      - Limpar mensagens
-```
-
-**Sistema de Logs:**
-
-```
-/setup_modlogs <#canal>  - Configurar canal de logs de moderação
-```
-
-- Logs automáticos de todas as ações (kick, ban, timeout, warn)
-- Embeds formatados com informações completas
-- Registro de filtro de palavras e quarentena
-
-**Filtro de Palavras:**
-
-```
-/setup_wordfilter <ativar> [ação] - Configurar filtro (warn/timeout/kick/ban)
-/addword <palavra>                - Adicionar palavra proibida
-/removeword <palavra>             - Remover palavra
-/listwords                        - Listar palavras proibidas
-```
-
-- Detecção automática de palavras proibidas
-- Ações configuráveis (aviso, timeout, kick, ban)
-- Logs detalhados de violações
-
-**Sistema de Quarentena:**
-
-```
-/setup_quarantine <ativar> [role] [duração] - Configurar quarentena
-```
-
-- Role automática para novos membros
-- Duração configurável em minutos
-- Remoção automática após tempo definido
-
-**Appeals System:**
-
-```
-/setup_appeals <enable> [#channel] - Configure appeals
-/appeal <server_id> <reason>       - Request unban (DM)
-```
-
-- Banned users can request review
-- Appeals sent to specific channel
-- Organized process for moderation
-
-**Auto-Moderation:**
-
-```
-/setup_antispam [enable] [channel] [action]          - Anti-spam with channel whitelist
-/setup_antiraid [enable] [threshold] [interval]      - Anti-raid protection
-/setup_nsfw [enable] [channel] [action] [api_key]    - NSFW detection (DeepAI)
-```
-
-- **Anti-Spam**: Spam detection by rapid messages and duplicates
-  - Channel whitelist (add/remove/list)
-  - Configurable message threshold
-  - Automatic actions: warn, timeout, kick
-  
-- **Anti-Raid**: Suspicious join monitoring
-  - Configurable threshold (X members in Y seconds)
-  - Automatic action when raid detected
-  - Detailed logs with timestamps
-
-- **NSFW Detection**: AI-powered image analysis
-  - DeepAI API integration
-  - Whitelist for NSFW-allowed channels
-  - Adjustable confidence threshold
-  - Actions: delete, warn, timeout, kick
-### 📊 Monitoramento
-
-```
-/status                  - Status do bot
-/ping                    - Latência
-/serverinfo              - Info do servidor
-/userinfo [@user]        - Info do utilizador
-```
-
-### 🔧 Utilidades Básicas
-
-```
-/avatar [@user]          - Ver avatar de um utilizador
-/userinfo [@user]        - Informações de utilizador
-/serverinfo              - Informações do servidor
-/botinfo                 - Informações do bot
-```
-
-### 🔧 Utilidades Avançadas
-
-```
-/lembrete                - Criar lembrete (simples ou recorrente)
-/meus_lembretes          - Ver lembretes ativos
-/poll                    - Criar poll interativa (até 5 opções)
-/anuncio                 - [ADMIN] Agendar anúncio
-/setup_autoroles         - [ADMIN] Configurar 3 painéis de roles
-/setup_verificacao       - [ADMIN] Sistema de verificação 2FA
-```
-
-### 👑 Admin
-
-```
-/reload <cog>            - Recarregar módulo
-/sync                    - Sincronizar comandos
-```
-
----
-
-## 📁 Estrutura
-
-```
-EPA-BOT/
-├── main.py              # Arquivo principal
-├── requirements.txt     # Dependências
-├── .env                 # Configuração (NÃO COMMITAR!)
-├── .gitignore          # Arquivos ignorados
+EPA BOTCHI/
+├── cogs/                   # Command modules (cogs)
+│   ├── games.py           # Main games (TicTacToe, Connect4)
+│   ├── games_extra.py     # Extra games (Hangman, Quiz, etc.)
+│   ├── economy.py         # Basic economy
+│   ├── economy_advanced.py # Advanced economy features
+│   ├── social.py          # Basic social features
+│   ├── social_advanced.py # Advanced social features
+│   ├── music.py           # Music system
+│   ├── moderation.py      # Moderation tools
+│   ├── tickets.py         # Ticket system
+│   ├── utilidades.py      # Utility commands
+│   ├── utilities_advanced.py # Advanced utilities
+│   ├── help.py            # Help command (TRANSLATED)
+│   └── fun.py             # Fun commands
 │
-├── cogs/               # Módulos do bot
-│   ├── economy.py      # Sistema de economia básico
-│   ├── economy_advanced.py # Economia avançada (trades, leilões, achievements)
-│   ├── games.py        # Jogos básicos
-│   ├── games_extra.py  # Jogos extras
-│   ├── music.py        # Player de música
-│   ├── social.py       # Sistema social (XP, perfis, badges)
-│   ├── social_advanced.py # Social avançado (casamentos, streaks, histórico)
-│   ├── social_advanced.py  # Social avançado (casamento, streaks, histórico)
-│   ├── tickets.py      # Sistema de tickets
-│   ├── moderation.py   # Moderação
-│   ├── monitoring.py   # Monitoramento
-│   ├── utilidades.py          # Utilitários básicos
-│   ├── utilities_advanced.py  # Lembretes, Polls, Auto-roles, 2FA
-│   ├── fun.py                 # Comandos divertidos
-│   └── help.py                # Sistema de ajuda
+├── config/                 # Configuration
+│   ├── settings.py        # Bot settings
+│   ├── i18n.py            # Translation system (NEW)
+│   └── *.json             # Config files
 │
-├── utils/              # Utilitários
-│   ├── database.py     # Gestão de database
-│   ├── backup.py       # Sistema de backup
-│   ├── logger.py       # Sistema de logging
-│   ├── embeds.py       # Builder de embeds
-│   └── pagination.py   # Sistema de paginação
+├── utils/                  # Utilities
+│   ├── database.py        # SQLite database
+│   ├── logger.py          # Logging system
+│   ├── embeds.py          # Embed helpers
+│   ├── pagination.py      # Pagination views
+│   └── backup.py          # Backup system
 │
-├── config/             # Configurações
-│   └── settings.py     # Settings principais
+├── data/                   # Data files
+│   ├── *.json             # JSON data
+│   └── database.db        # SQLite database
 │
-├── data/               # Dados (gitignored)
-│   ├── bot.db         # Database SQLite
-│   └── *.json         # Backups JSON
-│
-├── logs/              # Logs (gitignored)
-│   └── bot.log        # Logs do bot
-│
-└── backups/           # Backups (gitignored)
-    └── *.zip          # Backups automáticos
+├── logs/                   # Log files
+├── main.py                 # Bot entry point
+├── requirements.txt        # Dependencies
+└── README_EN.md           # This file
 ```
 
----
+### Adding New Features
 
-## 🛠️ Tecnologias
+1. Create or modify cog in `cogs/`
+2. Add translations to `config/i18n.py`
+3. Update `cogs/help.py` with new commands
+4. Test thoroughly
+5. Update CHANGELOG
 
-### Core
+### Code Style
 
-- **[Discord.py](https://discordpy.readthedocs.io/)** 2.4.0 - Framework principal
-- **[Python](https://python.org)** 3.10+ - Linguagem
-
-### Database & Storage
-
-- **[aiosqlite](https://aiosqlite.omnilib.dev/)** - SQLite assíncrono
-- **[aiofiles](https://github.com/Tinche/aiofiles)** - I/O de ficheiros assíncrono
-
-### Sistema
-
-- **[psutil](https://psutil.readthedocs.io/)** - Monitoramento de sistema
-- **[python-dotenv](https://pypi.org/project/python-dotenv/)** - Gestão de .env
-
-### Música (Opcional)
-
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Download de áudio
-- **[PyNaCl](https://pynacl.readthedocs.io/)** - Codificação de áudio
-- **[FFmpeg](https://ffmpeg.org/)** - Processamento de áudio
+- Use async/await for Discord commands
+- Follow PEP 8 style guide
+- Add docstrings to all functions
+- Use type hints where possible
+- Comment complex logic
 
 ---
 
-## 🚀 Iniciar o Bot
+## 📝 Version History
 
-### Método 1: Script Automático (Windows)
+### v2.6.1 (2024-11-24)
 
-```bash
-start.bat
-```
+- ✅ Added `/emoji` - Enlarge custom emojis
+- ✅ Added `/emojiinfo` - Emoji technical information
+- 🐛 Fixed Blackjack loading issue (syntax error)
 
-### Método 2: Manual
+### v2.6.0 (2024-11-20)
 
-```bash
-python main.py
-```
+- ✅ Advanced Economy System (9 new tables)
+- ✅ Custom Roles, Trading, Achievements
+- ✅ Auction System, Special Events
+- ✅ Complete social system overhaul
 
-### Método 3: Com Logs
+### v2.5.0
 
-```bash
-python main.py 2>&1 | tee -a logs/bot.log
-```
+- ✅ Game challenge system with timeouts
+- ✅ Hangman rewrite with text detection
+- ✅ Optimized all game timeouts
 
----
+### Earlier Versions
 
-## 🔄 Backups
-
-O bot cria backups automáticos:
-
-- **Frequência:** A cada 24 horas
-- **Localização:** `backups/`
-- **Formato:** ZIP comprimido
-- **Retenção:** 7 dias
-
-### Restaurar Backup Manualmente
-
-```python
-from utils.backup import BackupSystem
-
-backup_system = BackupSystem()
-await backup_system.restore_backup("backup_2024-01-15_12-00-00.zip")
-```
+See [CHANGELOG.md](CHANGELOG.md) for complete history.
 
 ---
 
-## 📊 Logging
+## 📄 License
 
-Logs são salvos em `logs/bot.log`:
-
-- **Rotação:** 5MB por ficheiro
-- **Backups:** 5 ficheiros antigos
-- **Níveis:** INFO, WARNING, ERROR, CRITICAL
-
-### Ver Logs
-
-```bash
-# Linux/Mac
-tail -f logs/bot.log
-
-# Windows (PowerShell)
-Get-Content logs/bot.log -Wait -Tail 50
-```
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🐛 Troubleshooting
+## 🤝 Contributing
 
-### Bot não inicia
+Contributions welcome! Please:
 
-1. Verifique se o token está correto no `.env`
-2. Confirme que todas as dependências estão instaladas
-3. Verifique os logs em `logs/bot.log`
-
-### Comandos não aparecem
-
-1. Execute `/sync` no Discord
-2. Aguarde até 1 hora para sincronização global
-3. Verifique permissões do bot
-
-### Música não funciona
-
-1. Instale FFmpeg corretamente
-2. Verifique se está no PATH do sistema
-3. Teste: `ffmpeg -version` no terminal
-
-### Database bloqueada
-
-1. Feche todas as instâncias do bot
-2. Delete `data/bot.db-wal` e `data/bot.db-shm`
-3. Reinicie o bot
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
 
 ---
 
-## ⚠️ Avisos Legais
+## 👤 Author
 
-### Disclaimer
+**Droppers** 🇵🇹
 
-```
-ESTE SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIAS DE QUALQUER TIPO.
-O AUTOR NÃO SE RESPONSABILIZA POR QUAISQUER DANOS CAUSADOS PELO USO DESTE BOT.
-
-ÉS TOTALMENTE RESPONSÁVEL POR:
-- Configurar o bot corretamente
-- Manter o token seguro
-- Cumprir os Termos de Serviço do Discord
-- Respeitar as leis de privacidade (GDPR, etc.)
-- Usar o bot de forma ética e legal
-
-NÃO É FORNECIDO SUPORTE TÉCNICO.
-```
-
-### Termos de Uso do Discord
-
-Este bot deve respeitar:
-
-- [Discord Terms of Service](https://discord.com/terms)
-- [Discord Developer Terms](https://discord.com/developers/docs/policies-and-agreements/developer-terms-of-service)
-- [Discord Developer Policy](https://discord.com/developers/docs/policies-and-agreements/developer-policy)
-
-### Privacidade
-
-O bot armazena:
-
-- IDs de utilizadores
-- Estatísticas de uso
-- Dados de economia/XP
-- Logs de moderação
-
-**Configure adequadamente de acordo com GDPR e leis locais!**
+- GitHub: [@Droppers02](https://github.com/Droppers02)
+- Repository: [Discord-Community-Bot](https://github.com/Droppers02/Discord-Community-Bot)
 
 ---
 
-## 📝 Licença
+## 🔗 Links
 
-Este projeto está sob a licença MIT. Veja o ficheiro `LICENSE` para mais detalhes.
-
-**Em resumo:**
-
-- ✅ Uso comercial permitido
-- ✅ Modificações permitidas
-- ✅ Distribuição permitida
-- ✅ Uso privado permitido
-- ⚠️ SEM garantia
-- ⚠️ SEM responsabilidade do autor
+- [Discord.py Documentation](https://discordpy.readthedocs.io/)
+- [Discord Developer Portal](https://discord.com/developers/applications)
+- [Portuguese Version (Main Branch)](https://github.com/Droppers02/Discord-Community-Bot/tree/main)
 
 ---
 
-## 🤝 Contribuições
-
-**Não são aceites contribuições externas no momento.**
-
-Este é um projeto pessoal sem manutenção ativa.
-
----
-
-## 📞 Contato
-
-**⚠️ NÃO ENTRE EM CONTATO PARA SUPORTE!**
-
-Este bot é fornecido como está, sem suporte.
-
-Se não consegues configurar ou usar, **este bot não é para ti**.
-
-### 💼 Bots Personalizados
-
-Interessado num bot Discord personalizado para o teu servidor?
-
-📧 **Email:** business.gnobre@gmail.com
-
-_Desenvolvimento de bots Discord sob medida com funcionalidades customizadas para as tuas necessidades específicas._
-
----
-
-## 🎓 Recursos de Aprendizagem
-
-Se quiseres aprender a criar bots Discord:
-
-- **Discord.py Docs:** https://discordpy.readthedocs.io/
-- **Discord Developer Portal:** https://discord.com/developers/docs
-- **Python.org:** https://docs.python.org/3/
-- **Real Python:** https://realpython.com/
-- **Automate the Boring Stuff:** https://automatetheboringstuff.com/
-
----
-
-## 🌟 Agradecimentos
-
-Obrigado a todos que contribuíram para as bibliotecas usadas neste projeto:
-
-- Discord.py team
-- Python community
-- Todos os desenvolvedores de bibliotecas open-source
-
----
-
-**Feito com ❤️ por Droppers**
-
-**Última atualização:** Novembro de 2025
-
----
+**Made with ❤️ for the Discord community**
