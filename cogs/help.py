@@ -147,7 +147,7 @@ class HelpCog(commands.Cog):
         social_commands = [
             "• `/rank [user]` - View level, XP and progress",
             "• `/like <user>` - Give reputation (1h cooldown)",
-            "• `/leaderboard [type]` - Rankings (XP/Reputation)",
+            "• `/leaderboard <category>` - Rankings (XP/Rep/Money/Games/Msgs/Streaks)",
             "• `/profile [user]` - View complete profile",
             "• `/editprofile` - Customize profile",
             "• `/badges [user]` - View earned badges",
@@ -157,6 +157,15 @@ class HelpCog(commands.Cog):
             "• `/streaks` - View streaks (Daily/Messages/Games)"
         ]
         embed2.add_field(name="⭐ **Advanced Social**", value="\n".join(social_commands), inline=False)
+        
+        social_new = [
+            "• `/friends <action> [user]` - Friends system",
+            "• `/friends_accept <user>` - Accept request",
+            "• `/friends_reject <user>` - Reject request",
+            "• `/marriage_upgrade <tier>` - Upgrade ring (1-5)",
+            "• `/activity [period] [user]` - Activity charts"
+        ]
+        embed2.add_field(name="👥 **New Features**", value="\n".join(social_new), inline=False)
         
         embed2.set_footer(text="Page 2/5 • Use buttons to navigate")
         embeds.append(embed2)
@@ -211,10 +220,16 @@ class HelpCog(commands.Cog):
             "• `/timeout <user> <preset>` - Timeout",
             "• `/untimeout <user>` - Remove timeout",
             "• `/warn <user> <reason>` - Warn",
-            "• `/warnings <user>` - View warnings",
-            "• `/clear <amount>` - Clear messages"
+            "• `/warnings <user>` - View warnings"
         ]
         embed4.add_field(name="🛡️ **Basic Moderation**", value="\n".join(moderation_commands), inline=False)
+        
+        clear_commands = [
+            "• `/clear amount <number>` - Clear N messages",
+            "• `/clear from <msg_id> [limit]` - From a message onwards",
+            "• `/clear between <msg1> <msg2>` - Between two messages"
+        ]
+        embed4.add_field(name="🗑️ **Message Cleanup**", value="\n".join(clear_commands), inline=False)
         
         moderation_advanced = [
             "• `/setup_modlogs <channel>` - Moderation logs",
