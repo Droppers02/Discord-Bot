@@ -12,6 +12,7 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
 
 - 🔄 **Redução de 122 → 94 comandos** para cumprir limite do Discord (100)
 - ✅ **Grupo `/setup`** - Consolidação de 10 comandos de configuração:
+
   - `/setup modlogs` - Logs de moderação
   - `/setup wordfilter` - Ativar/desativar filtro de palavras
   - `/setup quarantine` - Sistema de quarentena
@@ -26,21 +27,25 @@ Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
   - `/setup rolebackup` - Backup/restauro de roles
 
 - ✅ **Grupo `/wordfilter`** - Gestão de palavras proibidas:
+
   - `/wordfilter add <palavra>` - Adicionar palavra
   - `/wordfilter remove <palavra>` - Remover palavra
   - `/wordfilter list` - Listar palavras
 
 - ✅ **Grupo `/nota`** - Notas pessoais:
+
   - `/nota add` - Adicionar nota
   - `/nota list` - Listar notas
   - `/nota view` - Ver nota
   - `/nota delete` - Deletar nota
 
 - ✅ **Grupo `/voz`** - Voice tracking:
+
   - `/voz stats` - Estatísticas de voz
   - `/voz leaderboard` - Top 10 tempo de voz
 
 - ✅ **Grupo `/sugestao`** - Sistema de sugestões:
+
   - `/sugestao enviar` - Criar sugestão
   - `/sugestao aprovar` - Aprovar sugestão
   - `/sugestao negar` - Recusar sugestão
