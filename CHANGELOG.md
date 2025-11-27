@@ -1,33 +1,131 @@
 # 📋 CHANGELOG
 
-Todas as mudanças notáveis neste projeto serão documentadas neste ficheiro.
+All notable changes to this project will be documented in this file.
+
+---
+
+## [2.7.2] - 2025-11-27
+
+### 🛡️ Moderation System - Advanced Extensions
+
+**Malicious Link Filter**
+
+- ✅ **Dangerous Link Detection**
+  - Block Discord invites (discord.gg, discord.com/invite)
+  - Detect known phishing domains
+  - Customizable domain whitelist/blacklist
+  - Channel whitelist where links are allowed
+  - Configurable actions: delete, warn, timeout, kick
+  - Integration with strikes system
+
+- ✅ **Link Configuration**
+  - `/setup_linkfilter` command for management
+  - Add/remove channels from whitelist
+  - Toggle Discord invite blocking
+  - Toggle phishing detection
+
+**Strikes System (3 Strikes = Ban)**
+
+- ✅ **Progressive Infraction Management**
+  - Automatic strikes on violations (malicious links, mention spam)
+  - Manual strikes with `/strike <user> <reason>` command
+  - 3 strikes = automatic ban
+  - Automatic strike expiry (default: 30 days)
+  - Complete strike history per user
+
+- ✅ **Progressive Actions**
+  - Strike 1: DM warning
+  - Strike 2: 24-hour timeout
+  - Strike 3: Permanent automatic ban
+
+- ✅ **Management Commands**
+  - `/strike <member> <reason>` - Add manual strike
+  - `/strikes [member]` - View strikes (own or others)
+  - `/clearstrikes <member>` - Clear all strikes (admin)
+  - `/setup_strikes` - Configure system (threshold, expiry)
+
+**Mention Spam Protection**
+
+- ✅ **Mention Limits**
+  - Maximum user mentions (default: 5)
+  - Maximum role mentions (default: 2)
+  - Block unauthorized @everyone/@here
+  - Auto-delete violating messages
+  - Moderator bypass
+
+- ✅ **Automatic Actions**
+  - Automatic timeout (default: 10 minutes)
+  - Integration with strikes system
+  - Detailed violation logs
+  - `/setup_mentionspam` configuration command
+
+**Auto-Slowmode During Raids**
+
+- ✅ **Smart Activation**
+  - Configurable message threshold (default: 20 messages in 10s)
+  - Adjustable slowmode duration (default: 10s)
+  - Configurable slowmode time (default: 5 minutes)
+  - Automatic removal after expiry
+  - Per-channel tracking
+
+- ✅ **Configuration**
+  - `/setup_slowmode` command for adjustments
+  - Automatic channel notification
+  - Activation/deactivation logs
+
+**Role Backup on Bans**
+
+- ✅ **Role Preservation**
+  - Automatic role backup when banning users
+  - Automatic restoration on unban (configurable)
+  - Manual restoration available
+  - Role hierarchy verification
+  - Support for multiple bans/unbans
+
+- ✅ **Updated Commands**
+  - `/ban` now automatically backs up roles
+  - `/unban` restores roles if configured
+  - `/setup_rolebackup` to enable/disable system
+
+### 🗄️ Database
+
+**New Tables**
+
+- `moderation_strikes` - Strike storage with expiry tracking
+- `role_backups` - JSON role backup for restoration
+
+**Performance Indexes**
+
+- `idx_strikes_user` - Fast strike lookup by user
+- `idx_strikes_active` - Efficient active strike filtering
+- `idx_role_backups_user` - Fast role backup lookup
 
 ---
 
 ## [2.7.1] - 2025-11-26
 
-### 🛡️ Sistema de Moderação Avançado
+### 🛡️ Advanced Moderation System
 
-**Anti-Spam com Whitelist de Canais**
+**Anti-Spam with Channel Whitelist**
 
-- ✅ **Deteção Inteligente de Spam**
-  - Limite de mensagens por intervalo de tempo (configurável)
-  - Deteção de mensagens duplicadas/idênticas
-  - Sistema de warnings acumulativos
-  - Auto-delete de mensagens de spam
-  - Bypass automático para moderadores
+- ✅ **Intelligent Spam Detection**
+  - Configurable message limit per time interval
+  - Duplicate/identical message detection
+  - Cumulative warning system
+  - Auto-delete spam messages
+  - Automatic moderator bypass
 
-- ✅ **Whitelist de Canais**
-  - Adicionar/remover canais onde spam é permitido
-  - Comando `/setup_antispam` com ações: add, remove, list
-  - Configuração por canal (não global)
+- ✅ **Channel Whitelist**
+  - Add/remove channels where spam is allowed
+  - `/setup_antispam` command with actions: add, remove, list
+  - Per-channel configuration (not global)
 
 **Anti-Raid Protection**
 
-- ✅ **Monitoramento de Joins Suspeitos**
-  - Threshold configurável (X membros em Y segundos)
-  - Ação automática quando raid é detetado (kick por padrão)
-  - Logs detalhados com timestamps dos joins
+- ✅ **Suspicious Join Monitoring**
+  - Configurable threshold (X members in Y seconds)
+  - Automatic action when raid detected (kick by default)
+  - Detailed logs with join timestamps
   - Limpeza automática da lista após deteção
 
 - ✅ **Configuração Flexível**
