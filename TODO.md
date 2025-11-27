@@ -123,7 +123,7 @@ Lista de tarefas, melhorias e correções planeadas para versões futuras.
 - [x] Sistema de lembretes recorrentes
 - [x] Polls/votações avançadas
 - [x] Sistema de anúncios agendados
-- [x] Welcome messages customizáveis
+- [x] Welcome messages customizáveisG
 - [x] Auto-roles em 3 painéis separados (Jogos, Plataformas, DM)
 - [x] Sistema de verificação 2FA (desafio matemático + código DM)
 - [x] Sistema de configuração JSON para roles/canais personalizáveis
