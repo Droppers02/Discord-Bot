@@ -56,6 +56,8 @@ class EPABot(commands.Bot):
         
         # Sistemas adicionais
         self.db = None
+        self.db_path = self.config.database_url
+        self.legacy_sqlite_path = self.config.legacy_sqlite_path
         self.backup_system = None
         
         self.initial_extensions = [
@@ -84,9 +86,12 @@ class EPABot(commands.Bot):
             self.db = await get_database()
             self.logger.info("✅ Base de dados inicializada")
             
+            if self.config.migrate_sqlite_on_startup:
+                await self.db.migrate_from_sqlite(self.config.legacy_sqlite_path)
+            
             # Migrar dados JSON se existirem
             from pathlib import Path
-            if Path("data/economy_simple.json").exists():
+            if Path("data/economy_simple.json").exists() and not Path(self.config.legacy_sqlite_path).exists():
                 self.logger.info("🔄 Detectados ficheiros JSON antigos, a migrar...")
                 await self.db.migrate_from_json()
         except Exception as e:
