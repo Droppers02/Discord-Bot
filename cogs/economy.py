@@ -25,7 +25,6 @@ class SimpleEconomy(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.data_file = "data/economy_simple.json"
         self.db_path = bot.config.database_url
         self.db = None  # Será inicializado em cog_load
         self.data_lock = threading.RLock()
@@ -223,7 +222,7 @@ class SimpleEconomy(commands.Cog):
                 for user_id in list(self.data["users"].keys()):
                     self._persist_user(user_id)
             except sqlite3.DatabaseError as error:
-                self.bot.logger.error(f"Erro ao guardar dados de economia em SQLite: {error}")
+                self.bot.logger.error(f"Erro ao guardar dados de economia na base de dados: {error}")
     
     def get_user_data(self, user_id: str):
         """Obter dados do utilizador"""

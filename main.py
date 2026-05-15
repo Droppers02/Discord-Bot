@@ -21,7 +21,6 @@ sys.path.insert(0, str(project_root))
 from config.settings import Config
 from utils.logger import setup_logging
 from utils.database import get_database
-from utils.backup import BackupSystem
 
 
 class EPABot(commands.Bot):
@@ -57,8 +56,6 @@ class EPABot(commands.Bot):
         # Sistemas adicionais
         self.db = None
         self.db_path = self.config.database_url
-        self.legacy_sqlite_path = self.config.legacy_sqlite_path
-        self.backup_system = None
         
         self.initial_extensions = [
             "cogs.help",
@@ -85,25 +82,8 @@ class EPABot(commands.Bot):
         try:
             self.db = await get_database()
             self.logger.info("✅ Base de dados inicializada")
-            
-            if self.config.migrate_sqlite_on_startup:
-                await self.db.migrate_from_sqlite(self.config.legacy_sqlite_path)
-            
-            # Migrar dados JSON se existirem
-            from pathlib import Path
-            if Path("data/economy_simple.json").exists() and not Path(self.config.legacy_sqlite_path).exists():
-                self.logger.info("🔄 Detectados ficheiros JSON antigos, a migrar...")
-                await self.db.migrate_from_json()
         except Exception as e:
             self.logger.error(f"❌ Erro ao inicializar base de dados: {e}")
-        
-        # Inicializar sistema de backup
-        try:
-            self.backup_system = BackupSystem(self, interval_hours=24)
-            self.backup_system.start()
-            self.logger.info("✅ Sistema de backup inicializado")
-        except Exception as e:
-            self.logger.error(f"❌ Erro ao inicializar backup: {e}")
         
         # Carregar extensões (cogs)
         for extension in self.initial_extensions:
@@ -200,8 +180,6 @@ class EPABot(commands.Bot):
     async def close(self):
         """Limpeza quando o bot é desligado"""
         self.logger.info("🔄 A desligar bot...")
-        if self.backup_system:
-            self.backup_system.stop()
         if self.db:
             await self.db.close()
         await super().close()
