@@ -93,7 +93,11 @@ class Config:
         
         return cls(
             discord_token=os.getenv("DISCORD_TOKEN", ""),
-            database_url=os.getenv("DATABASE_URL", os.getenv("NEON_DATABASE_URL", "")),
+            database_url=(
+                os.getenv("DATABASE_URL")
+                or os.getenv("NEON_DATABASE_URL")
+                or os.getenv("SQL_DATABASE_URL", "")
+            ),
             openai_token=os.getenv("OPENAI_TOKEN"),
             owner_ids=owner_ids,
             legacy_sqlite_path=os.getenv("LEGACY_SQLITE_PATH", "data/epa_bot.db"),
@@ -117,5 +121,5 @@ class Config:
         if not self.discord_token:
             raise ValueError("DISCORD_TOKEN é obrigatório")
         if not self.database_url:
-            raise ValueError("DATABASE_URL é obrigatório para a versão PostgreSQL")
+            raise ValueError("DATABASE_URL, NEON_DATABASE_URL ou SQL_DATABASE_URL é obrigatório para a versão PostgreSQL")
         return True
