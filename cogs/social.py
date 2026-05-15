@@ -1462,9 +1462,9 @@ class SocialCog(commands.Cog):
             # Buscar dados de atividade
             async with aiosqlite.connect(self.db.db_path) as db:
                 async with db.execute(
-                    """SELECT date, message_count, xp_gained 
-                       FROM message_stats 
-                       WHERE user_id = ? AND guild_id = ? 
+                          """SELECT date, message_count, xp_gained
+                              FROM message_stats
+                              WHERE user_id = ? AND guild_id = ?
                        AND date >= CURRENT_DATE - CAST(? AS INTEGER)
                        ORDER BY date ASC""",
                     (user_id, guild_id, days)
