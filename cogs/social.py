@@ -1,8 +1,6 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json
-import os
 import random
 import asyncio
 from datetime import datetime, timedelta
@@ -18,10 +16,8 @@ class SocialCog(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.welcome_file = "data/welcome_config.json"
         self.db = None  # Será inicializado em cog_load
-        self.ensure_welcome_file()
-        self.load_welcome_config()
+        self.welcome_config = {"guilds": {}}
         
         # Cooldowns para XP e reputação
         self.xp_cooldowns = {}
@@ -32,30 +28,18 @@ class SocialCog(commands.Cog):
         """Carregado quando o cog é inicializado"""
         try:
             self.db = await get_database()
+            self.welcome_config = await self.db.load_welcome_configs()
         except Exception as e:
             self.bot.logger.error(f"Erro ao carregar database no social: {e}")
 
-    def ensure_welcome_file(self):
-        """Garantir que o arquivo de welcome existe"""
-        os.makedirs("data", exist_ok=True)
-        
-        if not os.path.exists(self.welcome_file):
-            with open(self.welcome_file, 'w', encoding='utf-8') as f:
-                json.dump({"guilds": {}}, f, indent=2)
+    async def save_welcome_config(self, guild_id: str):
+        """Guardar configurações de boas-vindas na base de dados."""
+        if not self.db:
+            return
 
-    def load_welcome_config(self):
-        """Carregar configurações de boas-vindas"""
         try:
-            with open(self.welcome_file, 'r', encoding='utf-8') as f:
-                self.welcome_config = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            self.welcome_config = {"guilds": {}}
-
-    def save_welcome_config(self):
-        """Salvar configurações de boas-vindas"""
-        try:
-            with open(self.welcome_file, 'w', encoding='utf-8') as f:
-                json.dump(self.welcome_config, f, indent=2, ensure_ascii=False)
+            config = self.welcome_config["guilds"].get(guild_id, {})
+            await self.db.save_welcome_config(guild_id, config)
         except Exception as e:
             self.bot.logger.error(f"Erro ao salvar config de boas-vindas: {e}")
 
@@ -626,7 +610,7 @@ class SocialCog(commands.Cog):
             config["goodbye_message"] = mensagem
             message = "✅ Mensagem de despedida definida!"
         
-        self.save_welcome_config()
+        await self.save_welcome_config(guild_id)
         
         embed = discord.Embed(
             title="⚙️ Configuração Atualizada",

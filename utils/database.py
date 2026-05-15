@@ -85,6 +85,234 @@ class Database:
             self.logger.info("✅ Base de dados PostgreSQL inicializada com sucesso")
 
         await self._ensure_connection()
+
+    @staticmethod
+    def _timestamp_to_iso(value: Optional[float]) -> Optional[str]:
+        if value is None:
+            return None
+        return datetime.utcfromtimestamp(value).isoformat()
+
+    @staticmethod
+    def _iso_to_timestamp(value: Optional[str]) -> Optional[float]:
+        if not value:
+            return None
+        try:
+            normalized = value.replace("Z", "+00:00")
+            return datetime.fromisoformat(normalized).timestamp()
+        except ValueError:
+            return None
+
+    async def load_welcome_configs(self) -> Dict[str, Dict[str, Any]]:
+        """Carrega a configuração de boas-vindas/despedidas para todas as guilds."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                "SELECT guild_id, channel_id, message, enabled, config_json FROM welcome_config"
+            ) as cursor:
+                rows = await cursor.fetchall()
+
+        configs: Dict[str, Dict[str, Any]] = {"guilds": {}}
+        for guild_id, channel_id, message, enabled, config_json in rows:
+            if config_json:
+                try:
+                    payload = json.loads(config_json)
+                except json.JSONDecodeError:
+                    payload = None
+                if isinstance(payload, dict):
+                    configs["guilds"][guild_id] = payload
+                    continue
+
+            legacy_payload: Dict[str, Any] = {}
+            if channel_id:
+                try:
+                    legacy_payload["welcome_channel"] = int(channel_id)
+                except (TypeError, ValueError):
+                    legacy_payload["welcome_channel"] = channel_id
+            if message:
+                legacy_payload["welcome_message"] = message
+            legacy_payload["welcome_enabled"] = bool(enabled)
+            configs["guilds"][guild_id] = legacy_payload
+
+        return configs
+
+    async def save_welcome_config(self, guild_id: str, config: Dict[str, Any]):
+        """Persiste a configuração de boas-vindas/despedidas de uma guild."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO welcome_config (guild_id, channel_id, message, enabled, config_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(guild_id) DO UPDATE SET
+                    channel_id = EXCLUDED.channel_id,
+                    message = EXCLUDED.message,
+                    enabled = EXCLUDED.enabled,
+                    config_json = EXCLUDED.config_json,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    guild_id,
+                    str(config.get("welcome_channel")) if config.get("welcome_channel") else None,
+                    config.get("welcome_message"),
+                    1 if config.get("welcome_enabled", False) else 0,
+                    json.dumps(config, ensure_ascii=False),
+                ),
+            )
+            await db.commit()
+
+    async def load_reminders(self) -> List[Dict[str, Any]]:
+        """Carrega lembretes persistidos."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT id, user_id, channel_id, message, remind_at, created_at, recurring, interval_seconds
+                FROM reminders
+                ORDER BY remind_at ASC
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+
+        reminders: List[Dict[str, Any]] = []
+        for row in rows:
+            remind_at = self._iso_to_timestamp(row[4])
+            created_at = self._iso_to_timestamp(row[5])
+            reminders.append({
+                "id": row[0],
+                "user_id": row[1],
+                "channel_id": row[2],
+                "message": row[3],
+                "time": remind_at if remind_at is not None else datetime.utcnow().timestamp(),
+                "created_at": created_at if created_at is not None else datetime.utcnow().timestamp(),
+                "recurring": bool(row[6]),
+                "interval": row[7] or 0,
+            })
+
+        return reminders
+
+    async def save_reminder(self, reminder: Dict[str, Any]) -> int:
+        """Insere ou atualiza um lembrete persistido."""
+        async with aiosqlite.connect(self.db_path) as db:
+            if reminder.get("id"):
+                await db.execute(
+                    """
+                    UPDATE reminders
+                    SET user_id = ?, channel_id = ?, message = ?, remind_at = ?, created_at = ?, recurring = ?, interval_seconds = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        reminder["user_id"],
+                        reminder["channel_id"],
+                        reminder["message"],
+                        self._timestamp_to_iso(reminder["time"]),
+                        self._timestamp_to_iso(reminder.get("created_at")),
+                        1 if reminder.get("recurring") else 0,
+                        reminder.get("interval", 0),
+                        reminder["id"],
+                    ),
+                )
+                await db.commit()
+                return reminder["id"]
+
+            cursor = await db.execute(
+                """
+                INSERT INTO reminders (user_id, channel_id, message, remind_at, created_at, recurring, interval_seconds)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    reminder["user_id"],
+                    reminder["channel_id"],
+                    reminder["message"],
+                    self._timestamp_to_iso(reminder["time"]),
+                    self._timestamp_to_iso(reminder.get("created_at")),
+                    1 if reminder.get("recurring") else 0,
+                    reminder.get("interval", 0),
+                ),
+            )
+            await db.commit()
+            return cursor.lastrowid or 0
+
+    async def delete_reminder(self, reminder_id: int):
+        """Remove um lembrete persistido."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
+            await db.commit()
+
+    async def load_scheduled_announcements(self) -> List[Dict[str, Any]]:
+        """Carrega anúncios agendados persistidos."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT id, channel_id, message, scheduled_for, created_by, created_at, embed_json
+                FROM scheduled_announcements
+                ORDER BY scheduled_for ASC
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+
+        announcements: List[Dict[str, Any]] = []
+        for row in rows:
+            scheduled_for = self._iso_to_timestamp(row[3])
+            created_at = self._iso_to_timestamp(row[5])
+            try:
+                embed_payload = json.loads(row[6]) if row[6] else None
+            except json.JSONDecodeError:
+                embed_payload = None
+
+            announcements.append({
+                "id": row[0],
+                "channel_id": row[1],
+                "message": row[2],
+                "time": scheduled_for if scheduled_for is not None else datetime.utcnow().timestamp(),
+                "created_by": row[4],
+                "created_at": created_at if created_at is not None else datetime.utcnow().timestamp(),
+                "embed": embed_payload,
+            })
+
+        return announcements
+
+    async def save_scheduled_announcement(self, announcement: Dict[str, Any]) -> int:
+        """Insere ou atualiza um anúncio agendado persistido."""
+        async with aiosqlite.connect(self.db_path) as db:
+            if announcement.get("id"):
+                await db.execute(
+                    """
+                    UPDATE scheduled_announcements
+                    SET channel_id = ?, message = ?, scheduled_for = ?, created_by = ?, created_at = ?, embed_json = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        announcement["channel_id"],
+                        announcement.get("message"),
+                        self._timestamp_to_iso(announcement["time"]),
+                        announcement.get("created_by"),
+                        self._timestamp_to_iso(announcement.get("created_at")),
+                        json.dumps(announcement.get("embed"), ensure_ascii=False) if announcement.get("embed") else None,
+                        announcement["id"],
+                    ),
+                )
+                await db.commit()
+                return announcement["id"]
+
+            cursor = await db.execute(
+                """
+                INSERT INTO scheduled_announcements (channel_id, message, scheduled_for, created_by, created_at, embed_json)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    announcement["channel_id"],
+                    announcement.get("message"),
+                    self._timestamp_to_iso(announcement["time"]),
+                    announcement.get("created_by"),
+                    self._timestamp_to_iso(announcement.get("created_at")),
+                    json.dumps(announcement.get("embed"), ensure_ascii=False) if announcement.get("embed") else None,
+                ),
+            )
+            await db.commit()
+            return cursor.lastrowid or 0
+
+    async def delete_scheduled_announcement(self, announcement_id: int):
+        """Remove um anúncio agendado persistido."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM scheduled_announcements WHERE id = ?", (announcement_id,))
+            await db.commit()
     
     # --- Métodos de Economia ---
     

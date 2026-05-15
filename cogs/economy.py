@@ -1,7 +1,7 @@
 """
 Sistema de Economia Simples para EPA BOT
 Baseado no DroppersShopBOT
-Atualizado com integração SQLite e embeds padronizados
+Atualizado com persistência PostgreSQL e embeds padronizados
 """
 
 import json
@@ -212,11 +212,11 @@ class SimpleEconomy(commands.Cog):
             return False
     
     def load_data(self):
-        """Inicializa o cache em memória; a persistência autoritativa fica em SQLite."""
+        """Inicializa o cache em memória; a persistência autoritativa fica na base de dados."""
         return {"users": {}}
     
     def save_data(self):
-        """Persiste o cache atual da economia em SQLite."""
+        """Persiste o cache atual da economia na base de dados."""
         with self.data_lock:
             try:
                 for user_id in list(self.data["users"].keys()):

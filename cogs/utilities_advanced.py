@@ -15,6 +15,7 @@ import random
 import string
 
 from utils.embeds import EmbedBuilder
+from utils.database import get_database
 from utils.logger import bot_logger
 
 
@@ -736,24 +737,17 @@ class UtilitiesAdvanced(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.reminders_file = "data/reminders.json"
-        self.polls_file = "data/polls.json"
-        self.scheduled_announcements_file = "data/scheduled_announcements.json"
         self.config_file = "config/utilities_config.json"
+        self.db = None
+        self.reminders = []
+        self.polls = []
+        self.scheduled_announcements = []
         
         # Tracking de voz
         self.voice_sessions = {}  # {user_id: {'join_time': datetime, 'channel_id': int}}
         
         # Carregar configuração
         self.load_config()
-        
-        self.ensure_data_files()
-        self.load_data()
-        
-        # Iniciar tasks
-        self.check_reminders.start()
-        self.check_announcements.start()
-        self.check_giveaways.start()
     
     def load_config(self):
         """Carregar configuração de IDs"""
@@ -787,43 +781,47 @@ class UtilitiesAdvanced(commands.Cog):
                 "messages": {}
             }
     
-    def ensure_data_files(self):
-        """Garantir que os ficheiros de dados existem"""
-        os.makedirs("data", exist_ok=True)
-        
-        for file in [self.reminders_file, self.polls_file, self.scheduled_announcements_file]:
-            if not os.path.exists(file):
-                with open(file, 'w', encoding='utf-8') as f:
-                    json.dump([], f)
-    
-    def load_data(self):
-        """Carregar dados dos ficheiros"""
-        with open(self.reminders_file, 'r', encoding='utf-8') as f:
-            self.reminders = json.load(f)
-        
-        with open(self.polls_file, 'r', encoding='utf-8') as f:
-            self.polls = json.load(f)
-        
-        with open(self.scheduled_announcements_file, 'r', encoding='utf-8') as f:
-            self.scheduled_announcements = json.load(f)
-    
-    def save_reminders(self):
-        """Guardar lembretes"""
-        with open(self.reminders_file, 'w', encoding='utf-8') as f:
-            json.dump(self.reminders, f, indent=2)
-    
-    def save_polls(self):
-        """Guardar polls"""
-        with open(self.polls_file, 'w', encoding='utf-8') as f:
-            json.dump(self.polls, f, indent=2)
-    
-    def save_announcements(self):
-        """Guardar anúncios agendados"""
-        with open(self.scheduled_announcements_file, 'w', encoding='utf-8') as f:
-            json.dump(self.scheduled_announcements, f, indent=2)
+    async def load_persistent_state(self):
+        """Carregar dados persistidos da base de dados."""
+        if not self.db:
+            return
+
+        self.reminders = await self.db.load_reminders()
+        self.scheduled_announcements = await self.db.load_scheduled_announcements()
+
+    async def save_reminder(self, reminder: dict):
+        """Guardar lembrete na base de dados."""
+        if not self.db:
+            return
+
+        reminder_id = await self.db.save_reminder(reminder)
+        if reminder_id:
+            reminder["id"] = reminder_id
+
+    async def delete_reminder(self, reminder: dict):
+        """Remover lembrete da base de dados."""
+        if self.db and reminder.get("id"):
+            await self.db.delete_reminder(reminder["id"])
+
+    async def save_announcement(self, announcement: dict):
+        """Guardar anúncio agendado na base de dados."""
+        if not self.db:
+            return
+
+        announcement_id = await self.db.save_scheduled_announcement(announcement)
+        if announcement_id:
+            announcement["id"] = announcement_id
+
+    async def delete_announcement(self, announcement: dict):
+        """Remover anúncio agendado da base de dados."""
+        if self.db and announcement.get("id"):
+            await self.db.delete_scheduled_announcement(announcement["id"])
     
     async def cog_load(self):
         """Carregar views persistentes"""
+        self.db = self.bot.db or await get_database()
+        await self.load_persistent_state()
+
         # Carregar views com IDs da configuração
         games_ids = self.config.get("autoroles", {}).get("games", {})
         platform_ids = self.config.get("autoroles", {}).get("platforms", {})
@@ -833,12 +831,24 @@ class UtilitiesAdvanced(commands.Cog):
         self.bot.add_view(PlatformRoleView(platform_ids))
         self.bot.add_view(DMPreferenceRoleView(dm_ids))
         self.bot.add_view(VerificationView(self.config))
+
+        if not self.check_reminders.is_running():
+            self.check_reminders.start()
+        if not self.check_announcements.is_running():
+            self.check_announcements.start()
+        if not self.check_giveaways.is_running():
+            self.check_giveaways.start()
+
         bot_logger.info("Sistema avançado de utilidades carregado")
     
     def cog_unload(self):
         """Parar tasks ao descarregar"""
-        self.check_reminders.cancel()
-        self.check_announcements.cancel()
+        if self.check_reminders.is_running():
+            self.check_reminders.cancel()
+        if self.check_announcements.is_running():
+            self.check_announcements.cancel()
+        if self.check_giveaways.is_running():
+            self.check_giveaways.cancel()
     
     @tasks.loop(minutes=1)
     async def check_reminders(self):
@@ -867,6 +877,7 @@ class UtilitiesAdvanced(commands.Cog):
                         # Se for recorrente, reagendar
                         if reminder.get('recurring'):
                             reminder['time'] = now + reminder['interval']
+                            await self.save_reminder(reminder)
                         else:
                             completed.append(reminder)
                     else:
@@ -880,9 +891,7 @@ class UtilitiesAdvanced(commands.Cog):
         for reminder in completed:
             if reminder in self.reminders:
                 self.reminders.remove(reminder)
-        
-        if completed:
-            self.save_reminders()
+                await self.delete_reminder(reminder)
     
     @tasks.loop(minutes=1)
     async def check_announcements(self):
@@ -927,9 +936,7 @@ class UtilitiesAdvanced(commands.Cog):
         for announcement in completed:
             if announcement in self.scheduled_announcements:
                 self.scheduled_announcements.remove(announcement)
-        
-        if completed:
-            self.save_announcements()
+                await self.delete_announcement(announcement)
     
     @tasks.loop(minutes=1)
     async def check_giveaways(self):
@@ -948,6 +955,12 @@ class UtilitiesAdvanced(commands.Cog):
             
             for message_id, guild_id in rows:
                 await self.end_giveaway(int(message_id), int(guild_id))
+
+    @check_reminders.before_loop
+    @check_announcements.before_loop
+    @check_giveaways.before_loop
+    async def before_background_tasks(self):
+        await self.bot.wait_until_ready()
     
     @check_reminders.before_loop
     @check_announcements.before_loop
@@ -1366,7 +1379,7 @@ class UtilitiesAdvanced(commands.Cog):
         }
         
         self.reminders.append(reminder)
-        self.save_reminders()
+        await self.save_reminder(reminder)
         
         embed = discord.Embed(
             title="✅ Lembrete Criado!",
@@ -1444,7 +1457,6 @@ class UtilitiesAdvanced(commands.Cog):
         poll_save = poll_data.copy()
         poll_save['voters'] = list(poll_data['voters'])
         self.polls.append(poll_save)
-        self.save_polls()
     
     @app_commands.command(
         name="anuncio",
@@ -1503,7 +1515,7 @@ class UtilitiesAdvanced(commands.Cog):
         }
         
         self.scheduled_announcements.append(announcement)
-        self.save_announcements()
+        await self.save_announcement(announcement)
         
         await interaction.response.send_message(
             f"✅ Anúncio agendado para {canal.mention} daqui a {tempo}!",
@@ -1575,7 +1587,7 @@ class UtilitiesAdvanced(commands.Cog):
         
         # Remover anúncio
         removed = self.scheduled_announcements.pop(numero - 1)
-        self.save_announcements()
+        await self.delete_announcement(removed)
         
         channel = self.bot.get_channel(int(removed['channel_id']))
         channel_name = channel.mention if channel else f"<#{removed['channel_id']}>"
