@@ -65,9 +65,11 @@ class EPABot(commands.Bot):
             "cogs.games",
             "cogs.music",
             "cogs.economy",
+            "cogs.economy_advanced",
             "cogs.utilidades",
             "cogs.utilities_advanced",  # Novo: Sistema avançado de utilidades
             "cogs.social",
+            "cogs.social_advanced",
             "cogs.games_extra",
             "cogs.moderation",
             "cogs.monitoring",
@@ -193,6 +195,10 @@ class EPABot(commands.Bot):
     async def close(self):
         """Limpeza quando o bot é desligado"""
         self.logger.info("🔄 A desligar bot...")
+        if self.backup_system:
+            self.backup_system.stop()
+        if self.db:
+            await self.db.close()
         await super().close()
 
 

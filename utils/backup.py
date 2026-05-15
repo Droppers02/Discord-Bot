@@ -73,12 +73,8 @@ class BackupSystem:
                     shutil.copy2(json_file, backup_path / json_file.name)
                 self.logger.info("✅ Ficheiros JSON copiados")
             
-            # Backup das configurações
-            config_files = [".env"]
-            for config_file in config_files:
-                file_path = Path(config_file)
-                if file_path.exists():
-                    shutil.copy2(file_path, backup_path / file_path.name)
+            # Não incluir segredos (.env) em backups automáticos.
+            self.logger.info("🔒 Ficheiros de ambiente foram excluídos do backup automático")
             
             # Criar arquivo ZIP
             zip_path = self.backup_dir / f"{backup_name}.zip"

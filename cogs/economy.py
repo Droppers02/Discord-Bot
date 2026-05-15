@@ -7,6 +7,8 @@ Atualizado com integração SQLite e embeds padronizados
 import json
 import os
 import random
+import sqlite3
+import threading
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -24,8 +26,9 @@ class SimpleEconomy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.data_file = "data/economy_simple.json"
-        self.data = self.load_data()
+        self.db_path = "data/epa_bot.db"
         self.db = None  # Será inicializado em cog_load
+        self.data_lock = threading.RLock()
         
         # Emoji das coins - tentar usar o personalizado primeiro, fallback para Unicode
         self.coin_emoji_custom = "<:epacoin2:1407389417290727434>"  # Emoji personalizado do servidor EPA
@@ -34,6 +37,7 @@ class SimpleEconomy(commands.Cog):
         
         # Criar directório se não existir
         os.makedirs("data", exist_ok=True)
+        self.data = self.load_data()
     
     async def cog_load(self):
         """Carregado quando o cog é inicializado"""
@@ -41,6 +45,139 @@ class SimpleEconomy(commands.Cog):
             self.db = await get_database()
         except Exception as e:
             self.bot.logger.error(f"Erro ao carregar database no economy: {e}")
+
+    def _default_user_data(self):
+        return {
+            "balance": 2500,
+            "last_daily": None,
+            "last_work": None,
+            "last_crime": None,
+            "daily_streak": 0,
+            "total_earned": 2500,
+            "total_donated": 0,
+            "lottery_week": None,
+            "lottery_tickets": 0,
+            "lottery_wins": 0,
+            "total_lottery_won": 0,
+            "items": []
+        }
+
+    def _get_connection(self):
+        return sqlite3.connect(self.db_path)
+
+    def _load_user_from_db(self, user_id: str):
+        user_data = self._default_user_data()
+
+        if not os.path.exists(self.db_path):
+            return user_data
+
+        with self._get_connection() as connection:
+            cursor = connection.execute(
+                """
+                SELECT balance, last_daily, last_work, last_crime, daily_streak,
+                       total_earned, total_donated, lottery_week, lottery_tickets,
+                       lottery_wins, total_lottery_won
+                FROM users
+                WHERE user_id = ?
+                """,
+                (user_id,)
+            )
+            row = cursor.fetchone()
+
+            if row:
+                user_data.update({
+                    "balance": row[0],
+                    "last_daily": row[1],
+                    "last_work": row[2],
+                    "last_crime": row[3],
+                    "daily_streak": row[4],
+                    "total_earned": row[5],
+                    "total_donated": row[6],
+                    "lottery_week": row[7],
+                    "lottery_tickets": row[8],
+                    "lottery_wins": row[9],
+                    "total_lottery_won": row[10],
+                })
+
+            item_rows = connection.execute(
+                "SELECT item_data FROM user_items WHERE user_id = ? ORDER BY acquired_at ASC",
+                (user_id,)
+            ).fetchall()
+
+        for item_row in item_rows:
+            try:
+                user_data["items"].append(json.loads(item_row[0]))
+            except (TypeError, json.JSONDecodeError):
+                continue
+
+        return user_data
+
+    def _persist_user(self, user_id: str):
+        user_data = self.data["users"][user_id]
+        items = user_data.get("items", [])
+
+        with self._get_connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO users (
+                    user_id, balance, last_daily, last_work, last_crime, daily_streak,
+                    total_earned, total_donated, lottery_week, lottery_tickets,
+                    lottery_wins, total_lottery_won
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    balance = excluded.balance,
+                    last_daily = excluded.last_daily,
+                    last_work = excluded.last_work,
+                    last_crime = excluded.last_crime,
+                    daily_streak = excluded.daily_streak,
+                    total_earned = excluded.total_earned,
+                    total_donated = excluded.total_donated,
+                    lottery_week = excluded.lottery_week,
+                    lottery_tickets = excluded.lottery_tickets,
+                    lottery_wins = excluded.lottery_wins,
+                    total_lottery_won = excluded.total_lottery_won,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    user_id,
+                    user_data.get("balance", 2500),
+                    user_data.get("last_daily"),
+                    user_data.get("last_work"),
+                    user_data.get("last_crime"),
+                    user_data.get("daily_streak", 0),
+                    user_data.get("total_earned", 2500),
+                    user_data.get("total_donated", 0),
+                    user_data.get("lottery_week"),
+                    user_data.get("lottery_tickets", 0),
+                    user_data.get("lottery_wins", 0),
+                    user_data.get("total_lottery_won", 0),
+                )
+            )
+            connection.execute("DELETE FROM user_items WHERE user_id = ?", (user_id,))
+            connection.executemany(
+                "INSERT INTO user_items (user_id, item_name, item_data) VALUES (?, ?, ?)",
+                [
+                    (user_id, str(item.get("name", "item")), json.dumps(item, ensure_ascii=False))
+                    for item in items
+                ]
+            )
+            connection.commit()
+
+    def _delete_user_data(self, user_id: str):
+        with self._get_connection() as connection:
+            connection.execute("DELETE FROM user_items WHERE user_id = ?", (user_id,))
+            connection.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+            connection.commit()
+
+    def _get_all_balances(self):
+        if not os.path.exists(self.db_path):
+            return []
+
+        with self._get_connection() as connection:
+            return connection.execute(
+                "SELECT user_id, balance FROM users WHERE balance > 0 ORDER BY balance DESC"
+            ).fetchall()
     
     def get_coin_display(self, amount: int = None):
         """Retorna o display formatado das coins com sistema híbrido"""
@@ -68,81 +205,55 @@ class SimpleEconomy(commands.Cog):
                 # Fallback para emoji Unicode
                 self.coin_emoji = self.coin_emoji_fallback
                 return False
-        except:
+        except Exception:
             # Em caso de erro, usar fallback
             self.coin_emoji = self.coin_emoji_fallback
             return False
     
     def load_data(self):
-        """Carregar dados do ficheiro JSON"""
-        try:
-            with open(self.data_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {"users": {}}
+        """Inicializa o cache em memória; a persistência autoritativa fica em SQLite."""
+        return {"users": {}}
     
     def save_data(self):
-        """Guardar dados no ficheiro JSON com tratamento de erros"""
-        try:
-            # Criar backup antes de salvar
-            if os.path.exists(self.data_file):
-                backup_file = f"{self.data_file}.backup"
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    backup_data = f.read()
-                with open(backup_file, 'w', encoding='utf-8') as f:
-                    f.write(backup_data)
-            
-            # Salvar dados
-            with open(self.data_file, 'w', encoding='utf-8') as f:
-                json.dump(self.data, f, indent=2, ensure_ascii=False)
-                
-        except Exception as e:
-            self.bot.logger.error(f"Erro ao guardar dados de economia: {e}")
-            # Tentar restaurar do backup se falhou
-            if os.path.exists(f"{self.data_file}.backup"):
-                try:
-                    with open(f"{self.data_file}.backup", 'r', encoding='utf-8') as f:
-                        self.data = json.load(f)
-                    self.bot.logger.info("Dados restaurados do backup")
-                except:
-                    pass
+        """Persiste o cache atual da economia em SQLite."""
+        with self.data_lock:
+            try:
+                for user_id in list(self.data["users"].keys()):
+                    self._persist_user(user_id)
+            except sqlite3.DatabaseError as error:
+                self.bot.logger.error(f"Erro ao guardar dados de economia em SQLite: {error}")
     
     def get_user_data(self, user_id: str):
         """Obter dados do utilizador"""
-        if user_id not in self.data["users"]:
-            self.data["users"][user_id] = {
-                "balance": 2500,  # Saldo inicial como no DroppersShopBOT
-                "last_daily": None,
-                "last_work": None,
-                "last_crime": None,
-                "daily_streak": 0,
-                "total_earned": 2500,
-                "total_donated": 0,
-                "items": []
-            }
-            self.save_data()
-        return self.data["users"][user_id]
+        with self.data_lock:
+            if user_id not in self.data["users"]:
+                self.data["users"][user_id] = self._load_user_from_db(user_id)
+                self._persist_user(user_id)
+            return self.data["users"][user_id]
     
     def add_money(self, user_id: str, amount: int):
         """Adicionar dinheiro ao utilizador"""
-        user_data = self.get_user_data(user_id)
-        user_data["balance"] += amount
-        user_data["total_earned"] += amount
-        self.save_data()
-        return user_data["balance"]
+        with self.data_lock:
+            user_data = self.get_user_data(user_id)
+            user_data["balance"] += amount
+            user_data["total_earned"] += amount
+            self._persist_user(user_id)
+            return user_data["balance"]
     
     def remove_money(self, user_id: str, amount: int):
         """Remover dinheiro do utilizador"""
-        user_data = self.get_user_data(user_id)
-        if user_data["balance"] >= amount:
-            user_data["balance"] -= amount
-            self.save_data()
-            return True
-        return False
+        with self.data_lock:
+            user_data = self.get_user_data(user_id)
+            if user_data["balance"] >= amount:
+                user_data["balance"] -= amount
+                self._persist_user(user_id)
+                return True
+            return False
     
     def get_balance(self, user_id: str):
         """Obter saldo do utilizador"""
-        return self.get_user_data(user_id)["balance"]
+        with self.data_lock:
+            return self.get_user_data(user_id)["balance"]
 
     async def _process_custom_role_purchase(self, interaction, user_id, item_info):
         """Processar compra de Custom Role"""
@@ -698,14 +809,13 @@ class SimpleEconomy(commands.Cog):
         """Mostrar ranking de utilizadores"""
         # Obter todos os utilizadores e ordenar por saldo
         all_users = []
-        for user_id, data in self.data["users"].items():
-            balance = data.get("balance", 0)
+        for user_id, balance in self._get_all_balances():
             if balance > 0:
                 try:
                     user = interaction.guild.get_member(int(user_id))
                     if user:
                         all_users.append((user, balance))
-                except:
+                except (TypeError, ValueError):
                     continue
         
         all_users.sort(key=lambda x: x[1], reverse=True)
@@ -893,7 +1003,7 @@ class SimpleEconomy(commands.Cog):
         )
         
         # Calcular ranking
-        all_balances = [(uid, data.get('balance', 0)) for uid, data in self.data["users"].items()]
+        all_balances = self._get_all_balances()
         all_balances.sort(key=lambda x: x[1], reverse=True)
         position = next((i for i, (uid, _) in enumerate(all_balances, 1) if uid == str(target.id)), "N/A")
         
@@ -999,8 +1109,8 @@ class SimpleEconomy(commands.Cog):
                     bot_top_role = interaction.guild.me.top_role
                     position = max(1, bot_top_role.position - 1)
                     await new_role.edit(position=position)
-                except:
-                    pass  # Se não conseguir mover, tudo bem
+                except discord.HTTPException as error:
+                    self.bot.logger.debug(f"Não foi possível reposicionar a custom role {new_role.id}: {error}")
                 
                 action = "criada"
                 
@@ -1121,9 +1231,8 @@ class SimpleEconomy(commands.Cog):
             return await interaction.response.send_message("❌ Apenas administradores podem usar este comando!", ephemeral=True)
         
         user_id = str(utilizador.id)
-        if user_id in self.data["users"]:
-            del self.data["users"][user_id]
-            self.save_data()
+        self.data["users"].pop(user_id, None)
+        self._delete_user_data(user_id)
         
         embed = discord.Embed(
             title="✅ Utilizador Resetado",
@@ -1461,8 +1570,8 @@ class BetChallengeView(discord.ui.View):
         # Tentar editar a mensagem se ainda estiver disponível
         try:
             await self.message.edit(embed=embed, view=None)
-        except:
-            pass
+        except discord.HTTPException as error:
+            self.economy_cog.bot.logger.debug(f"Falha ao editar mensagem expirada de aposta: {error}")
 
 
 async def setup(bot):
