@@ -1,14 +1,15 @@
-"""
-Sistema de Base de Dados para EPA BOT
-Migração de JSON para SQLite com suporte assíncrono
-"""
+"""Sistema de base de dados PostgreSQL para o EPA BOT."""
 
+import os
 import aiosqlite
 import json
 import logging
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List, Any
+
+from utils.postgres_schema import ALTER_STATEMENTS, IDENTITY_COLUMNS, MIGRATION_TABLE_ORDER, SCHEMA_STATEMENTS
 
 
 class DatabaseOperation:
@@ -42,13 +43,15 @@ class DatabaseOperation:
 class Database:
     """Classe principal para gestão da base de dados"""
     
-    def __init__(self, db_path: str = "data/epa_bot.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL", "")
         self.logger = logging.getLogger("EPA BOT.Database")
         self.connection: Optional[aiosqlite.Connection] = None
 
     async def _ensure_connection(self) -> aiosqlite.Connection:
         """Garante uma ligação persistente para queries raw usadas pelos cogs."""
+        if not self.db_path:
+            raise ValueError("DATABASE_URL não configurado")
         if self.connection is None:
             self.connection = await aiosqlite.connect(self.db_path)
         return self.connection
@@ -70,6 +73,17 @@ class Database:
         
     async def init_db(self):
         """Inicializa a base de dados e cria as tabelas"""
+        async with aiosqlite.connect(self.db_path) as db:
+            for statement in SCHEMA_STATEMENTS:
+                await db.execute(statement)
+            for statement in ALTER_STATEMENTS:
+                await db.execute(statement)
+            await db.commit()
+            self.logger.info("✅ Base de dados PostgreSQL inicializada com sucesso")
+
+        await self._ensure_connection()
+        return
+
         async with aiosqlite.connect(self.db_path) as db:
             # Tabela de utilizadores (economia)
             await db.execute("""
@@ -724,8 +738,8 @@ class Database:
         await self._ensure_connection()
     
     async def migrate_from_json(self):
-        """Migra dados dos ficheiros JSON existentes para SQLite"""
-        self.logger.info("🔄 Iniciando migração de JSON para SQLite...")
+        """Migra dados dos ficheiros JSON existentes para PostgreSQL."""
+        self.logger.info("🔄 Iniciando migração de JSON para PostgreSQL...")
         
         # Migrar economia
         economy_file = Path("data/economy_simple.json")
@@ -736,9 +750,16 @@ class Database:
             async with aiosqlite.connect(self.db_path) as db:
                 for user_id, data in economy_data.get("users", {}).items():
                     await db.execute("""
-                        INSERT OR REPLACE INTO users 
+                        INSERT INTO users 
                         (user_id, balance, last_daily, daily_streak, total_earned, total_donated)
                         VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(user_id) DO UPDATE SET
+                            balance = EXCLUDED.balance,
+                            last_daily = EXCLUDED.last_daily,
+                            daily_streak = EXCLUDED.daily_streak,
+                            total_earned = EXCLUDED.total_earned,
+                            total_donated = EXCLUDED.total_donated,
+                            updated_at = CURRENT_TIMESTAMP
                     """, (
                         user_id,
                         data.get("balance", 2500),
@@ -768,9 +789,15 @@ class Database:
                 for guild_id, users in social_data.get("guilds", {}).items():
                     for user_id, data in users.items():
                         await db.execute("""
-                            INSERT OR REPLACE INTO user_levels 
+                            INSERT INTO user_levels 
                             (user_id, guild_id, xp, level, messages_sent, last_message_at)
                             VALUES (?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                                xp = EXCLUDED.xp,
+                                level = EXCLUDED.level,
+                                messages_sent = EXCLUDED.messages_sent,
+                                last_message_at = EXCLUDED.last_message_at,
+                                updated_at = CURRENT_TIMESTAMP
                         """, (
                             user_id,
                             guild_id,
@@ -781,9 +808,11 @@ class Database:
                         ))
                         
                         await db.execute("""
-                            INSERT OR REPLACE INTO user_reputation 
+                            INSERT INTO user_reputation 
                             (user_id, guild_id, reputation)
                             VALUES (?, ?, ?)
+                            ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                                reputation = EXCLUDED.reputation
                         """, (user_id, guild_id, data.get("reputation", 0)))
                 
                 await db.commit()
@@ -799,9 +828,14 @@ class Database:
             async with aiosqlite.connect(self.db_path) as db:
                 for guild_id, config in welcome_data.get("guilds", {}).items():
                     await db.execute("""
-                        INSERT OR REPLACE INTO welcome_config 
+                        INSERT INTO welcome_config 
                         (guild_id, channel_id, message, enabled)
                         VALUES (?, ?, ?, ?)
+                        ON CONFLICT(guild_id) DO UPDATE SET
+                            channel_id = EXCLUDED.channel_id,
+                            message = EXCLUDED.message,
+                            enabled = EXCLUDED.enabled,
+                            updated_at = CURRENT_TIMESTAMP
                     """, (
                         guild_id,
                         config.get("channel_id"),
@@ -813,6 +847,126 @@ class Database:
                 self.logger.info(f"✅ Migradas {len(welcome_data.get('guilds', {}))} configurações de boas-vindas")
         
         self.logger.info("🎉 Migração concluída com sucesso!")
+
+    async def _is_database_empty(self) -> bool:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT (
+                    EXISTS (SELECT 1 FROM users LIMIT 1) OR
+                    EXISTS (SELECT 1 FROM user_levels LIMIT 1) OR
+                    EXISTS (SELECT 1 FROM tickets LIMIT 1) OR
+                    EXISTS (SELECT 1 FROM suggestions LIMIT 1) OR
+                    EXISTS (SELECT 1 FROM starboard LIMIT 1)
+                )
+                """
+            ) as cursor:
+                row = await cursor.fetchone()
+                return not bool(row[0]) if row else True
+
+    async def _set_meta_value(self, key: str, value: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO app_meta (key, value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = EXCLUDED.value,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (key, value),
+            )
+            await db.commit()
+
+    async def _meta_exists(self, key: str) -> bool:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT 1 FROM app_meta WHERE key = ?", (key,)) as cursor:
+                row = await cursor.fetchone()
+                return row is not None
+
+    async def _get_postgres_columns(self, table_name: str) -> List[str]:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = ?
+                ORDER BY ordinal_position
+                """,
+                (table_name,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [row[0] for row in rows]
+
+    async def _reset_identity_sequences(self):
+        async with aiosqlite.connect(self.db_path) as db:
+            for table_name, column_name in IDENTITY_COLUMNS.items():
+                await db.execute(
+                    f"SELECT setval(pg_get_serial_sequence('{table_name}', '{column_name}'), COALESCE((SELECT MAX({column_name}) FROM {table_name}), 1), COALESCE((SELECT MAX({column_name}) FROM {table_name}), 0) > 0)"
+                )
+            await db.commit()
+
+    async def migrate_from_sqlite(self, sqlite_path: str = "data/epa_bot.db") -> bool:
+        source_path = Path(sqlite_path)
+        if not source_path.exists():
+            self.logger.info("ℹ️ Nenhuma base SQLite legada encontrada para migrar")
+            return False
+
+        migration_key = f"sqlite_migrated::{source_path.resolve()}"
+        if await self._meta_exists(migration_key):
+            self.logger.info("ℹ️ Migração SQLite -> PostgreSQL já tinha sido concluída")
+            return False
+
+        if not await self._is_database_empty():
+            self.logger.info("ℹ️ PostgreSQL já contém dados; a migração automática do SQLite foi ignorada")
+            return False
+
+        copied_rows = 0
+        self.logger.info(f"🔄 A migrar dados de SQLite para PostgreSQL a partir de {source_path}")
+
+        with sqlite3.connect(source_path) as legacy_db:
+            legacy_db.row_factory = sqlite3.Row
+            sqlite_tables = {
+                row[0]
+                for row in legacy_db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                ).fetchall()
+            }
+
+            async with aiosqlite.connect(self.db_path) as target_db:
+                for table_name in MIGRATION_TABLE_ORDER:
+                    if table_name not in sqlite_tables:
+                        continue
+
+                    postgres_columns = await self._get_postgres_columns(table_name)
+                    legacy_columns = [
+                        row[1]
+                        for row in legacy_db.execute(f"PRAGMA table_info({table_name})").fetchall()
+                        if row[1] in postgres_columns
+                    ]
+                    if not legacy_columns:
+                        continue
+
+                    select_columns = ", ".join(legacy_columns)
+                    rows = legacy_db.execute(
+                        f"SELECT {select_columns} FROM {table_name}"
+                    ).fetchall()
+                    if not rows:
+                        continue
+
+                    placeholders = ", ".join(["?"] * len(legacy_columns))
+                    await target_db.executemany(
+                        f"INSERT INTO {table_name} ({select_columns}) VALUES ({placeholders}) ON CONFLICT DO NOTHING",
+                        [tuple(row[column] for column in legacy_columns) for row in rows],
+                    )
+                    copied_rows += len(rows)
+
+                await target_db.commit()
+
+        await self._reset_identity_sequences()
+        await self._set_meta_value(migration_key, datetime.utcnow().isoformat())
+        self.logger.info(f"✅ Migração SQLite -> PostgreSQL concluída com {copied_rows} registos copiados")
+        return copied_rows > 0
     
     # --- Métodos de Economia ---
     
@@ -1530,8 +1684,13 @@ class Database:
         """Cria uma custom role para o utilizador"""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""
-                INSERT OR REPLACE INTO custom_roles (user_id, guild_id, role_id, role_name, role_color, expires_at)
+                INSERT INTO custom_roles (user_id, guild_id, role_id, role_name, role_color, expires_at)
                 VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                    role_id = EXCLUDED.role_id,
+                    role_name = EXCLUDED.role_name,
+                    role_color = EXCLUDED.role_color,
+                    expires_at = EXCLUDED.expires_at
             """, (user_id, guild_id, role_id, role_name, role_color, expires_at))
             await db.commit()
     
@@ -1657,8 +1816,17 @@ class Database:
         """Adiciona um achievement ao sistema"""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""
-                INSERT OR REPLACE INTO achievements (achievement_id, name, description, emoji, reward_coins, reward_badge, requirement_type, requirement_value, tier)
+                INSERT INTO achievements (achievement_id, name, description, emoji, reward_coins, reward_badge, requirement_type, requirement_value, tier)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(achievement_id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    description = EXCLUDED.description,
+                    emoji = EXCLUDED.emoji,
+                    reward_coins = EXCLUDED.reward_coins,
+                    reward_badge = EXCLUDED.reward_badge,
+                    requirement_type = EXCLUDED.requirement_type,
+                    requirement_value = EXCLUDED.requirement_value,
+                    tier = EXCLUDED.tier
             """, (achievement_id, name, description, emoji, reward_coins, reward_badge, requirement_type, requirement_value, tier))
             await db.commit()
     

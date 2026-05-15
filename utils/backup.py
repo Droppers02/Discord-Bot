@@ -53,6 +53,7 @@ class BackupSystem:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_name = f"epa_bot_backup_{timestamp}"
         backup_path = self.backup_dir / backup_name
+        legacy_sqlite_path = Path(getattr(self.bot.config, "legacy_sqlite_path", "data/epa_bot.db"))
         
         try:
             self.logger.info(f"📦 Criando backup: {backup_name}")
@@ -60,11 +61,12 @@ class BackupSystem:
             # Criar diretório temporário para o backup
             backup_path.mkdir(exist_ok=True)
             
-            # Backup da base de dados
-            db_file = Path("data/epa_bot.db")
-            if db_file.exists():
-                shutil.copy2(db_file, backup_path / "epa_bot.db")
-                self.logger.info("✅ Base de dados copiada")
+            # Snapshot local legado do SQLite, caso ainda exista.
+            if legacy_sqlite_path.exists():
+                shutil.copy2(legacy_sqlite_path, backup_path / legacy_sqlite_path.name)
+                self.logger.info("✅ Snapshot SQLite legado copiado")
+            else:
+                self.logger.info("ℹ️ Base de dados principal está em PostgreSQL gerido; não há ficheiro local para copiar")
             
             # Backup dos ficheiros JSON (caso ainda existam)
             data_dir = Path("data")
@@ -112,6 +114,7 @@ class BackupSystem:
     async def restore_backup(self, backup_file: str):
         """Restaura um backup"""
         backup_path = Path(backup_file)
+        legacy_sqlite_path = Path(getattr(self.bot.config, "legacy_sqlite_path", "data/epa_bot.db"))
         
         if not backup_path.exists():
             raise FileNotFoundError(f"Backup não encontrado: {backup_file}")
@@ -130,11 +133,14 @@ class BackupSystem:
             with zipfile.ZipFile(backup_path, 'r') as zipf:
                 zipf.extractall(extract_dir)
             
-            # Restaurar base de dados
-            db_backup = extract_dir / "epa_bot.db"
+            # Restaurar snapshot SQLite legado, caso exista no backup.
+            db_backup = extract_dir / legacy_sqlite_path.name
             if db_backup.exists():
-                shutil.copy2(db_backup, "data/epa_bot.db")
-                self.logger.info("✅ Base de dados restaurada")
+                legacy_sqlite_path.parent.mkdir(exist_ok=True)
+                shutil.copy2(db_backup, legacy_sqlite_path)
+                self.logger.info("✅ Snapshot SQLite legado restaurado")
+            else:
+                self.logger.info("ℹ️ O backup não contém snapshot local da base PostgreSQL gerida externamente")
             
             # Restaurar ficheiros JSON
             for json_file in extract_dir.glob("*.json"):

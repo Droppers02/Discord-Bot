@@ -9,8 +9,11 @@ class Config:
     
     # Tokens e IDs
     discord_token: str
+    database_url: str
     openai_token: Optional[str] = None
     owner_ids: list[int] = None  # IDs dos donos do bot
+    legacy_sqlite_path: str = "data/epa_bot.db"
+    migrate_sqlite_on_startup: bool = True
     
     # Configurações do servidor (use IDs do seu servidor)
     server_id: int = 0  # ID do seu servidor
@@ -90,8 +93,11 @@ class Config:
         
         return cls(
             discord_token=os.getenv("DISCORD_TOKEN", ""),
+            database_url=os.getenv("DATABASE_URL", os.getenv("NEON_DATABASE_URL", "")),
             openai_token=os.getenv("OPENAI_TOKEN"),
             owner_ids=owner_ids,
+            legacy_sqlite_path=os.getenv("LEGACY_SQLITE_PATH", "data/epa_bot.db"),
+            migrate_sqlite_on_startup=cls._parse_bool_env("MIGRATE_SQLITE_ON_STARTUP", True),
             server_id=cls._parse_int_env("SERVER_ID", 0),
             mod_role_id=cls._parse_int_env("MOD_ROLE_ID", 0),
             ticket_category_id=cls._parse_int_env("TICKET_CATEGORY_ID", 0),
@@ -110,4 +116,6 @@ class Config:
         """Valida se as configurações obrigatórias estão presentes"""
         if not self.discord_token:
             raise ValueError("DISCORD_TOKEN é obrigatório")
+        if not self.database_url:
+            raise ValueError("DATABASE_URL é obrigatório para a versão PostgreSQL")
         return True

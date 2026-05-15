@@ -7,7 +7,6 @@ Atualizado com integração SQLite e embeds padronizados
 import json
 import os
 import random
-import sqlite3
 import threading
 from datetime import datetime, timedelta
 from typing import Optional
@@ -16,6 +15,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+from utils import pg_sync as sqlite3
 from utils.embeds import EmbedBuilder
 from utils.database import get_database
 
@@ -26,7 +26,7 @@ class SimpleEconomy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.data_file = "data/economy_simple.json"
-        self.db_path = "data/epa_bot.db"
+        self.db_path = bot.config.database_url
         self.db = None  # Será inicializado em cog_load
         self.data_lock = threading.RLock()
         
@@ -63,12 +63,14 @@ class SimpleEconomy(commands.Cog):
         }
 
     def _get_connection(self):
+        if not self.db_path:
+            raise ValueError("DATABASE_URL não configurado")
         return sqlite3.connect(self.db_path)
 
     def _load_user_from_db(self, user_id: str):
         user_data = self._default_user_data()
 
-        if not os.path.exists(self.db_path):
+        if not self.db_path:
             return user_data
 
         with self._get_connection() as connection:
@@ -171,7 +173,7 @@ class SimpleEconomy(commands.Cog):
             connection.commit()
 
     def _get_all_balances(self):
-        if not os.path.exists(self.db_path):
+        if not self.db_path:
             return []
 
         with self._get_connection() as connection:

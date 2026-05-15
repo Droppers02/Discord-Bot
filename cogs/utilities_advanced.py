@@ -2428,8 +2428,11 @@ class UtilitiesAdvanced(commands.Cog):
         import aiosqlite
         async with aiosqlite.connect(self.bot.db.db_path) as db:
             await db.execute("""
-                INSERT OR REPLACE INTO afk_status (user_id, guild_id, reason, set_at)
+                INSERT INTO afk_status (user_id, guild_id, reason, set_at)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                    reason = EXCLUDED.reason,
+                    set_at = CURRENT_TIMESTAMP
             """, (str(interaction.user.id), str(interaction.guild.id), razao))
             await db.commit()
         
@@ -2611,9 +2614,16 @@ class UtilitiesAdvanced(commands.Cog):
         import aiosqlite
         async with aiosqlite.connect(self.bot.db.db_path) as db:
             await db.execute("""
-                INSERT OR REPLACE INTO starboard_config 
+                INSERT INTO starboard_config 
                 (guild_id, channel_id, star_threshold, emoji, enabled, self_star)
                 VALUES (?, ?, ?, ?, 1, ?)
+                ON CONFLICT(guild_id) DO UPDATE SET
+                    channel_id = EXCLUDED.channel_id,
+                    star_threshold = EXCLUDED.star_threshold,
+                    emoji = EXCLUDED.emoji,
+                    enabled = EXCLUDED.enabled,
+                    self_star = EXCLUDED.self_star,
+                    updated_at = CURRENT_TIMESTAMP
             """, (
                 str(interaction.guild.id),
                 str(canal.id),
