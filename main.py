@@ -212,7 +212,15 @@ if __name__ == "__main__":
         sys.exit(1)
     
     try:
-        asyncio.run(main())
+        if sys.platform == "win32":
+            if sys.version_info >= (3, 11):
+                with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
+                    runner.run(main())
+            else:
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                asyncio.run(main())
+        else:
+            asyncio.run(main())
     except KeyboardInterrupt:
         print("\n🛑 Bot interrompido pelo utilizador")
     except Exception as e:
