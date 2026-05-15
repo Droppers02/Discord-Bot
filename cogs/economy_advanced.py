@@ -72,6 +72,37 @@ class EconomyAdvanced(commands.Cog):
         if amount is None:
             return self.coin_emoji
         return f"{amount:,} {self.coin_emoji}"
+
+    def _validate_role_name(self, role_name: str) -> str:
+        cleaned_name = role_name.strip()
+        if not cleaned_name:
+            raise ValueError("❌ O nome da role não pode estar vazio!")
+        if len(cleaned_name) > 32:
+            raise ValueError("❌ Nome da role deve ter no máximo 32 caracteres!")
+
+        lowered_name = cleaned_name.lower()
+        if "@everyone" in lowered_name or "@here" in lowered_name:
+            raise ValueError("❌ O nome da role não pode mencionar @everyone ou @here!")
+
+        return cleaned_name
+
+    def _parse_role_color(self, raw_color: str) -> discord.Color:
+        color_names = {
+            "red": 0xff0000, "blue": 0x0000ff, "green": 0x00ff00,
+            "yellow": 0xffff00, "purple": 0x800080, "pink": 0xffc0cb,
+            "orange": 0xffa500, "black": 0x000000, "white": 0xffffff,
+            "cyan": 0x00ffff, "magenta": 0xff00ff, "gold": 0xffd700
+        }
+
+        normalized = raw_color.strip()
+        if normalized.lower() in color_names:
+            return discord.Color(color_names[normalized.lower()])
+
+        color_hex = normalized[1:] if normalized.startswith("#") else normalized
+        if len(color_hex) != 6 or any(char not in "0123456789abcdefABCDEF" for char in color_hex):
+            raise ValueError("❌ Cor inválida! Use formato hex (#FF5733) ou nome (red, blue, etc.)")
+
+        return discord.Color(int(color_hex, 16))
     
     # ===== CUSTOM ROLES =====
     
@@ -114,28 +145,11 @@ class EconomyAdvanced(commands.Cog):
             )
             return await interaction.followup.send(embed=embed)
         
-        # Validar nome
-        if len(nome) > 32:
-            return await interaction.followup.send("❌ Nome da role deve ter no máximo 32 caracteres!")
-        
-        # Converter cor
         try:
-            # Cores predefinidas
-            color_names = {
-                "red": 0xff0000, "blue": 0x0000ff, "green": 0x00ff00,
-                "yellow": 0xffff00, "purple": 0x800080, "pink": 0xffc0cb,
-                "orange": 0xffa500, "black": 0x000000, "white": 0xffffff,
-                "cyan": 0x00ffff, "magenta": 0xff00ff, "gold": 0xffd700
-            }
-            
-            if cor.lower() in color_names:
-                color_value = discord.Color(color_names[cor.lower()])
-            else:
-                # Hex color
-                color_hex = cor.replace("#", "")
-                color_value = discord.Color(int(color_hex, 16))
-        except:
-            return await interaction.followup.send("❌ Cor inválida! Use formato hex (#FF5733) ou nome (red, blue, etc.)")
+            nome = self._validate_role_name(nome)
+            color_value = self._parse_role_color(cor)
+        except ValueError as error:
+            return await interaction.followup.send(str(error))
         
         try:
             # Criar role no Discord
@@ -207,30 +221,20 @@ class EconomyAdvanced(commands.Cog):
         
         # Atualizar nome
         if novo_nome:
-            if len(novo_nome) > 32:
-                return await interaction.followup.send("❌ Nome deve ter no máximo 32 caracteres!")
+            try:
+                novo_nome = self._validate_role_name(novo_nome)
+            except ValueError as error:
+                return await interaction.followup.send(str(error))
             await role.edit(name=novo_nome)
         
         # Atualizar cor
         new_color = None
         if nova_cor:
             try:
-                color_names = {
-                    "red": 0xff0000, "blue": 0x0000ff, "green": 0x00ff00,
-                    "yellow": 0xffff00, "purple": 0x800080, "pink": 0xffc0cb,
-                    "orange": 0xffa500, "black": 0x000000, "white": 0xffffff,
-                    "cyan": 0x00ffff, "magenta": 0xff00ff, "gold": 0xffd700
-                }
-                
-                if nova_cor.lower() in color_names:
-                    new_color = discord.Color(color_names[nova_cor.lower()])
-                else:
-                    color_hex = nova_cor.replace("#", "")
-                    new_color = discord.Color(int(color_hex, 16))
-                
+                new_color = self._parse_role_color(nova_cor)
                 await role.edit(color=new_color)
-            except:
-                return await interaction.followup.send("❌ Cor inválida!")
+            except ValueError as error:
+                return await interaction.followup.send(str(error))
         
         # Atualizar base de dados
         await self.db.create_custom_role(
@@ -271,8 +275,8 @@ class EconomyAdvanced(commands.Cog):
         if role:
             try:
                 await role.delete(reason=f"Custom role removida por {interaction.user}")
-            except:
-                pass
+            except discord.HTTPException as error:
+                self.bot.logger.debug(f"Falha ao apagar custom role {role.id}: {error}")
         
         # Remover da base de dados
         await self.db.delete_custom_role(user_id, guild_id)

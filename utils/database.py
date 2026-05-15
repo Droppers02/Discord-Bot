@@ -5,10 +5,38 @@ Migração de JSON para SQLite com suporte assíncrono
 
 import aiosqlite
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List, Any
-import logging
+
+
+class DatabaseOperation:
+    """Operação lazy para compatibilidade com `await db.execute(...)` e `async with db.execute(...)`."""
+
+    def __init__(self, database: "Database", query: str, params: tuple[Any, ...]):
+        self.database = database
+        self.query = query
+        self.params = params
+        self.cursor: Optional[aiosqlite.Cursor] = None
+
+    async def _execute(self) -> aiosqlite.Cursor:
+        connection = await self.database._ensure_connection()
+        self.cursor = await connection.execute(self.query, self.params)
+        return self.cursor
+
+    def __await__(self):
+        return self._execute().__await__()
+
+    async def __aenter__(self) -> aiosqlite.Cursor:
+        if self.cursor is None:
+            await self._execute()
+        return self.cursor
+
+    async def __aexit__(self, exc_type, exc, tb):
+        if self.cursor is not None:
+            await self.cursor.close()
+            self.cursor = None
 
 
 class Database:
@@ -17,6 +45,28 @@ class Database:
     def __init__(self, db_path: str = "data/epa_bot.db"):
         self.db_path = db_path
         self.logger = logging.getLogger("EPA BOT.Database")
+        self.connection: Optional[aiosqlite.Connection] = None
+
+    async def _ensure_connection(self) -> aiosqlite.Connection:
+        """Garante uma ligação persistente para queries raw usadas pelos cogs."""
+        if self.connection is None:
+            self.connection = await aiosqlite.connect(self.db_path)
+        return self.connection
+
+    def execute(self, query: str, params: tuple[Any, ...] = ()) -> DatabaseOperation:
+        """Compatibilidade com chamadas raw usadas por alguns cogs."""
+        return DatabaseOperation(self, query, params)
+
+    async def commit(self):
+        """Commit na ligação persistente, quando existir."""
+        connection = await self._ensure_connection()
+        await connection.commit()
+
+    async def close(self):
+        """Fecha a ligação persistente do wrapper."""
+        if self.connection is not None:
+            await self.connection.close()
+            self.connection = None
         
     async def init_db(self):
         """Inicializa a base de dados e cria as tabelas"""
@@ -27,9 +77,15 @@ class Database:
                     user_id TEXT PRIMARY KEY,
                     balance INTEGER DEFAULT 2500,
                     last_daily TEXT,
+                    last_work TEXT,
+                    last_crime TEXT,
                     daily_streak INTEGER DEFAULT 0,
                     total_earned INTEGER DEFAULT 2500,
                     total_donated INTEGER DEFAULT 0,
+                    lottery_week TEXT,
+                    lottery_tickets INTEGER DEFAULT 0,
+                    lottery_wins INTEGER DEFAULT 0,
+                    total_lottery_won INTEGER DEFAULT 0,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
@@ -66,15 +122,20 @@ class Database:
             """)
             
             # Adicionar colunas se não existirem (migração)
-            try:
-                await db.execute("ALTER TABLE user_levels ADD COLUMN daily_streak INTEGER DEFAULT 0")
-            except:
-                pass  # Coluna já existe
-            
-            try:
-                await db.execute("ALTER TABLE user_levels ADD COLUMN last_daily TEXT")
-            except:
-                pass  # Coluna já existe
+            for alter_query in (
+                "ALTER TABLE user_levels ADD COLUMN daily_streak INTEGER DEFAULT 0",
+                "ALTER TABLE user_levels ADD COLUMN last_daily TEXT",
+                "ALTER TABLE users ADD COLUMN last_work TEXT",
+                "ALTER TABLE users ADD COLUMN last_crime TEXT",
+                "ALTER TABLE users ADD COLUMN lottery_week TEXT",
+                "ALTER TABLE users ADD COLUMN lottery_tickets INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN lottery_wins INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN total_lottery_won INTEGER DEFAULT 0",
+            ):
+                try:
+                    await db.execute(alter_query)
+                except aiosqlite.OperationalError:
+                    continue
             
             # Tabela de reputação
             await db.execute("""
@@ -659,6 +720,8 @@ class Database:
             
             await db.commit()
             self.logger.info("✅ Base de dados inicializada com sucesso")
+
+        await self._ensure_connection()
     
     async def migrate_from_json(self):
         """Migra dados dos ficheiros JSON existentes para SQLite"""
@@ -761,6 +824,179 @@ class Database:
             ) as cursor:
                 row = await cursor.fetchone()
                 return row[0] if row else 2500
+
+    async def get_economy_user(self, user_id: str) -> Dict[str, Any]:
+        """Obtém todos os dados económicos persistidos de um utilizador."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT balance, last_daily, last_work, last_crime, daily_streak,
+                       total_earned, total_donated, lottery_week, lottery_tickets,
+                       lottery_wins, total_lottery_won
+                FROM users
+                WHERE user_id = ?
+                """,
+                (user_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+
+            async with db.execute(
+                "SELECT item_data FROM user_items WHERE user_id = ? ORDER BY acquired_at ASC",
+                (user_id,)
+            ) as cursor:
+                item_rows = await cursor.fetchall()
+
+        items: List[Dict[str, Any]] = []
+        for item_row in item_rows:
+            try:
+                items.append(json.loads(item_row[0]))
+            except (TypeError, json.JSONDecodeError):
+                continue
+
+        if not row:
+            return {
+                "balance": 2500,
+                "last_daily": None,
+                "last_work": None,
+                "last_crime": None,
+                "daily_streak": 0,
+                "total_earned": 2500,
+                "total_donated": 0,
+                "lottery_week": None,
+                "lottery_tickets": 0,
+                "lottery_wins": 0,
+                "total_lottery_won": 0,
+                "items": items,
+            }
+
+        return {
+            "balance": row[0],
+            "last_daily": row[1],
+            "last_work": row[2],
+            "last_crime": row[3],
+            "daily_streak": row[4],
+            "total_earned": row[5],
+            "total_donated": row[6],
+            "lottery_week": row[7],
+            "lottery_tickets": row[8],
+            "lottery_wins": row[9],
+            "total_lottery_won": row[10],
+            "items": items,
+        }
+
+    async def get_all_economy_users(self) -> Dict[str, Dict[str, Any]]:
+        """Obtém todos os utilizadores económicos para rankings e manutenção."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT user_id, balance, last_daily, last_work, last_crime, daily_streak,
+                       total_earned, total_donated, lottery_week, lottery_tickets,
+                       lottery_wins, total_lottery_won
+                FROM users
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+
+            async with db.execute(
+                "SELECT user_id, item_data FROM user_items ORDER BY acquired_at ASC"
+            ) as cursor:
+                item_rows = await cursor.fetchall()
+
+        users: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            users[row[0]] = {
+                "balance": row[1],
+                "last_daily": row[2],
+                "last_work": row[3],
+                "last_crime": row[4],
+                "daily_streak": row[5],
+                "total_earned": row[6],
+                "total_donated": row[7],
+                "lottery_week": row[8],
+                "lottery_tickets": row[9],
+                "lottery_wins": row[10],
+                "total_lottery_won": row[11],
+                "items": [],
+            }
+
+        for user_id, item_data in item_rows:
+            users.setdefault(user_id, {
+                "balance": 2500,
+                "last_daily": None,
+                "last_work": None,
+                "last_crime": None,
+                "daily_streak": 0,
+                "total_earned": 2500,
+                "total_donated": 0,
+                "lottery_week": None,
+                "lottery_tickets": 0,
+                "lottery_wins": 0,
+                "total_lottery_won": 0,
+                "items": [],
+            })
+            try:
+                users[user_id]["items"].append(json.loads(item_data))
+            except (TypeError, json.JSONDecodeError):
+                continue
+
+        return users
+
+    async def upsert_economy_user(self, user_id: str, data: Dict[str, Any]):
+        """Persiste todos os dados económicos de um utilizador."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO users (
+                    user_id, balance, last_daily, last_work, last_crime, daily_streak,
+                    total_earned, total_donated, lottery_week, lottery_tickets,
+                    lottery_wins, total_lottery_won
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    balance = excluded.balance,
+                    last_daily = excluded.last_daily,
+                    last_work = excluded.last_work,
+                    last_crime = excluded.last_crime,
+                    daily_streak = excluded.daily_streak,
+                    total_earned = excluded.total_earned,
+                    total_donated = excluded.total_donated,
+                    lottery_week = excluded.lottery_week,
+                    lottery_tickets = excluded.lottery_tickets,
+                    lottery_wins = excluded.lottery_wins,
+                    total_lottery_won = excluded.total_lottery_won,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    user_id,
+                    data.get("balance", 2500),
+                    data.get("last_daily"),
+                    data.get("last_work"),
+                    data.get("last_crime"),
+                    data.get("daily_streak", 0),
+                    data.get("total_earned", 2500),
+                    data.get("total_donated", 0),
+                    data.get("lottery_week"),
+                    data.get("lottery_tickets", 0),
+                    data.get("lottery_wins", 0),
+                    data.get("total_lottery_won", 0),
+                )
+            )
+
+            await db.execute("DELETE FROM user_items WHERE user_id = ?", (user_id,))
+            for item in data.get("items", []):
+                await db.execute(
+                    "INSERT INTO user_items (user_id, item_name, item_data) VALUES (?, ?, ?)",
+                    (user_id, str(item.get("name", "item")), json.dumps(item, ensure_ascii=False))
+                )
+
+            await db.commit()
+
+    async def reset_economy_user(self, user_id: str):
+        """Apaga dados económicos persistidos de um utilizador."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM user_items WHERE user_id = ?", (user_id,))
+            await db.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+            await db.commit()
     
     async def add_money(self, user_id: str, amount: int, transaction_type: str = "earn", description: str = None):
         """Adiciona dinheiro a um utilizador"""
@@ -782,14 +1018,18 @@ class Database:
             
             await db.commit()
     
-    async def remove_money(self, user_id: str, amount: int, transaction_type: str = "spend", description: str = None):
-        """Remove dinheiro de um utilizador"""
+    async def remove_money(self, user_id: str, amount: int, transaction_type: str = "spend", description: str = None) -> bool:
+        """Remove dinheiro de um utilizador sem permitir saldo negativo."""
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
+            cursor = await db.execute("""
                 UPDATE users 
                 SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = ?
-            """, (amount, user_id))
+                WHERE user_id = ? AND balance >= ?
+            """, (amount, user_id, amount))
+
+            if cursor.rowcount == 0:
+                await db.rollback()
+                return False
             
             # Registar transação
             await db.execute("""
@@ -798,6 +1038,7 @@ class Database:
             """, (user_id, amount, transaction_type, description))
             
             await db.commit()
+            return True
     
     async def transfer_money(self, from_user: str, to_user: str, amount: int):
         """Transfere dinheiro entre utilizadores"""
@@ -836,6 +1077,13 @@ class Database:
             """, (limit,)) as cursor:
                 rows = await cursor.fetchall()
                 return [{"user_id": row[0], "balance": row[1]} for row in rows]
+
+    async def update_user_xp(self, user_id: str, guild_id: str, xp_gain: int):
+        """Incrementa XP e recalcula o nível sem incrementar mensagens."""
+        current = await self.get_user_level(user_id, guild_id)
+        new_xp = current["xp"] + xp_gain
+        new_level = int((new_xp / 100) ** 0.5) + 1
+        await self.update_user_level(user_id, guild_id, new_xp, new_level, increment_messages=False)
     
     # --- Métodos de XP/Níveis ---
     
@@ -1005,6 +1253,23 @@ class Database:
                       current_streak, current_streak))
             
             await db.commit()
+
+    async def get_game_leaderboard(self, limit: int = 10):
+        """Obtém ranking agregado de vitórias por utilizador."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT user_id, COALESCE(SUM(wins), 0) AS total_wins
+                FROM game_stats
+                GROUP BY user_id
+                HAVING total_wins > 0
+                ORDER BY total_wins DESC
+                LIMIT ?
+                """,
+                (limit,)
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [{"user_id": row[0], "wins": row[1]} for row in rows]
     
     async def get_game_stats(self, user_id: str, game_type: str = None):
         """Obtém estatísticas de jogo de um utilizador"""
@@ -1075,7 +1340,7 @@ class Database:
                 """, (user_id, guild_id, badge_id, badge_name, badge_emoji, badge_description))
                 await db.commit()
                 return True
-            except:
+            except aiosqlite.IntegrityError:
                 return False
     
     async def get_user_badges(self, user_id: str, guild_id: str):
@@ -1156,7 +1421,7 @@ class Database:
                 """, (guild_id, user1_id, user2_id))
                 await db.commit()
                 return True
-            except:
+            except aiosqlite.IntegrityError:
                 return False
     
     async def get_marriage(self, guild_id: str, user_id: str):
@@ -1307,6 +1572,38 @@ class Database:
             """, (guild_id, sender_id, receiver_id, sender_coins, sender_items, receiver_coins, receiver_items))
             await db.commit()
             return cursor.lastrowid
+
+    async def get_next_ticket_id(self) -> int:
+        """Obtém o próximo ID global de ticket persistido."""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT COALESCE(MAX(ticket_id), 0) + 1 FROM tickets") as cursor:
+                row = await cursor.fetchone()
+                return row[0] if row else 1
+
+    async def create_ticket_record(self, ticket_id: int, guild_id: str, channel_id: str, user_id: str):
+        """Regista um ticket aberto."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO tickets (ticket_id, guild_id, channel_id, user_id, status)
+                VALUES (?, ?, ?, ?, 'open')
+                """,
+                (ticket_id, guild_id, channel_id, user_id)
+            )
+            await db.commit()
+
+    async def close_ticket_record(self, channel_id: str, closed_by: str):
+        """Marca um ticket como fechado."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                UPDATE tickets
+                SET status = 'closed', closed_at = CURRENT_TIMESTAMP, closed_by = ?
+                WHERE channel_id = ? AND status = 'open'
+                """,
+                (closed_by, channel_id)
+            )
+            await db.commit()
     
     async def get_trade(self, trade_id: int):
         """Obtém detalhes de um trade"""
@@ -1375,7 +1672,7 @@ class Database:
                 """, (user_id, guild_id, achievement_id))
                 await db.commit()
                 return True
-            except:
+            except aiosqlite.IntegrityError:
                 return False  # Já tinha desbloqueado
     
     async def get_user_achievements(self, user_id: str, guild_id: str):

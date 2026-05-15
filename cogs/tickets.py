@@ -12,6 +12,7 @@ import random
 
 from utils.embeds import EmbedBuilder
 from utils.logger import bot_logger
+from utils.database import get_database
 
 
 class TicketCategorySelect(discord.ui.Select):
@@ -180,15 +181,22 @@ class TicketCategorySelect(discord.ui.Select):
                 )
                 return
             
-            # Gerar ID sequencial
+            # Gerar ID sequencial persistido
             cog = interaction.client.get_cog('Tickets')
-            ticket_id = cog.get_next_ticket_id(interaction.guild.id)
+            ticket_id = await cog.get_next_ticket_id()
             
             # Criar canal SEM overwrites (mais rápido)
             username = interaction.user.name.lower().replace(" ", "-")
             ticket_channel = await ticket_category.create_text_channel(
                 name=f"🎫┃{username}-{ticket_id:04d}",
                 topic=f"Ticket de {interaction.user.name} | {cat_info['name']}"
+            )
+
+            await cog.db.create_ticket_record(
+                ticket_id=ticket_id,
+                guild_id=str(interaction.guild.id),
+                channel_id=str(ticket_channel.id),
+                user_id=str(interaction.user.id)
             )
             
             # Configurar permissões DEPOIS
@@ -375,6 +383,10 @@ class TicketControlView(discord.ui.View):
             goodbye_embed.set_footer(text="EPA BOT - Sistema de Tickets")
             
             await interaction.channel.send(embed=goodbye_embed)
+
+            ticket_cog = interaction.client.get_cog("Tickets")
+            if ticket_cog and ticket_cog.db:
+                await ticket_cog.db.close_ticket_record(str(interaction.channel.id), str(interaction.user.id))
             
             # Aguardar e apagar
             await asyncio.sleep(5)
@@ -418,20 +430,18 @@ class Tickets(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.ticket_counter = {}  # {guild_id: counter}
+        self.db = None
     
     async def cog_load(self):
         """Carrega views persistentes"""
+        self.db = await get_database()
         self.bot.add_view(TicketPanelView())
         self.bot.add_view(TicketControlView())
         bot_logger.info("Sistema de tickets carregado")
     
-    def get_next_ticket_id(self, guild_id: int) -> int:
-        """Obtém próximo ID sequencial do ticket"""
-        if guild_id not in self.ticket_counter:
-            self.ticket_counter[guild_id] = 0
-        self.ticket_counter[guild_id] += 1
-        return self.ticket_counter[guild_id]
+    async def get_next_ticket_id(self) -> int:
+        """Obtém próximo ID sequencial persistido do ticket."""
+        return await self.db.get_next_ticket_id()
     
     @app_commands.command(
         name="setup_tickets",

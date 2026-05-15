@@ -48,7 +48,7 @@ class SocialCog(commands.Cog):
         try:
             with open(self.welcome_file, 'r', encoding='utf-8') as f:
                 self.welcome_config = json.load(f)
-        except:
+        except (FileNotFoundError, json.JSONDecodeError):
             self.welcome_config = {"guilds": {}}
 
     def save_welcome_config(self):
@@ -67,6 +67,24 @@ class SocialCog(commands.Cog):
         """XP necessário para um nível"""
         return ((level - 1) ** 2) * 100
 
+    def cleanup_runtime_state(self, now: float):
+        """Limpa cooldowns expirados para evitar crescimento indefinido em memória."""
+        self.xp_cooldowns = {
+            key: timestamp
+            for key, timestamp in self.xp_cooldowns.items()
+            if now - timestamp < 60
+        }
+        self.rep_cooldowns = {
+            key: timestamp
+            for key, timestamp in self.rep_cooldowns.items()
+            if now - timestamp < 3600
+        }
+        self.levelup_notified = {
+            key: timestamp
+            for key, timestamp in self.levelup_notified.items()
+            if now - timestamp < 300
+        }
+
     @commands.Cog.listener()
     async def on_message(self, message):
         """Sistema de XP por mensagens - agora com base de dados e achievements"""
@@ -79,6 +97,7 @@ class SocialCog(commands.Cog):
         # Verificar cooldown (1 XP por minuto máximo)
         cooldown_key = f"{user_id}_{guild_id}"
         now = datetime.utcnow().timestamp()
+        self.cleanup_runtime_state(now)
         
         if cooldown_key in self.xp_cooldowns:
             if now - self.xp_cooldowns[cooldown_key] < 60:  # 60 segundos
@@ -148,8 +167,8 @@ class SocialCog(commands.Cog):
                 
                 try:
                     await message.channel.send(embed=embed, delete_after=10)
-                except:
-                    pass
+                except discord.HTTPException as error:
+                    self.bot.logger.debug(f"Falha ao enviar notificação de level up para {user_id}: {error}")
                 
                 # Dar badge por marco de nível
                 if new_level == 10:
@@ -164,10 +183,7 @@ class SocialCog(commands.Cog):
                 # Log de atividade
                 await self.db.log_activity(user_id, guild_id, "level_up", f"Subiu para nível {new_level}")
             
-            # Limpar notificações antigas (mais de 5 minutos) - fazer sempre, não só em level up
-            old_keys = [k for k, v in self.levelup_notified.items() if now - v > 300]
-            for k in old_keys:
-                del self.levelup_notified[k]
+            self.cleanup_runtime_state(now)
         
         except Exception as e:
             self.bot.logger.error(f"Erro ao processar XP: {e}")
@@ -321,12 +337,6 @@ class SocialCog(commands.Cog):
             )
             
             embed.add_field(
-                name="✨ XP Total",
-                value=f"**{current_xp:,}**",
-                inline=True
-            )
-            
-            embed.add_field(
                 name="📈 Reputação",
                 value=f"**{level_data.get('reputation', 0)}**",
                 inline=True
@@ -341,12 +351,6 @@ class SocialCog(commands.Cog):
             embed.add_field(
                 name="💬 Mensagens Enviadas",
                 value=f"**{level_data.get('messages', 0):,}**",
-                inline=True
-            )
-            
-            embed.add_field(
-                name="💬 Mensagens Enviadas",
-                value=f"**{messages:,}**",
                 inline=True
             )
             
@@ -372,6 +376,7 @@ class SocialCog(commands.Cog):
         # Verificar cooldown (1 like por hora por pessoa)
         cooldown_key = f"{interaction.user.id}_{utilizador.id}"
         now = datetime.utcnow().timestamp()
+        self.cleanup_runtime_state(now)
         
         if cooldown_key in self.rep_cooldowns:
             time_left = 3600 - (now - self.rep_cooldowns[cooldown_key])  # 1 hora
@@ -445,6 +450,7 @@ class SocialCog(commands.Cog):
         
         try:
             # Buscar dados baseado na categoria
+            rows = []
             if categoria == "xp":
                 query = """SELECT user_id, xp, level 
                           FROM user_levels 
@@ -453,6 +459,8 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "🏆 Ranking por XP/Nível"
                 format_func = lambda row: f"Nível {row[2]} ({row[1]:,} XP)"
+                async with self.db.execute(query, (guild_id,)) as cursor:
+                    rows = await cursor.fetchall()
                 
             elif categoria == "reputation":
                 query = """SELECT user_id, reputation, level 
@@ -462,24 +470,30 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "👍 Ranking por Reputação"
                 format_func = lambda row: f"{row[1]} likes"
+                async with self.db.execute(query, (guild_id,)) as cursor:
+                    rows = await cursor.fetchall()
                 
             elif categoria == "money":
-                query = """SELECT user_id, balance 
-                          FROM economy 
-                          WHERE guild_id = ? 
-                          ORDER BY balance DESC 
-                          LIMIT 10"""
                 title = "💰 Ranking por Dinheiro"
                 format_func = lambda row: f"${row[1]:,}"
+                richest_users = await self.db.get_top_richest(limit=100)
+                for entry in richest_users:
+                    member = interaction.guild.get_member(int(entry["user_id"]))
+                    if member:
+                        rows.append((entry["user_id"], entry["balance"]))
+                    if len(rows) == 10:
+                        break
                 
             elif categoria == "games":
-                query = """SELECT user_id, total_wins 
-                          FROM game_stats 
-                          WHERE guild_id = ? AND total_wins > 0
-                          ORDER BY total_wins DESC 
-                          LIMIT 10"""
                 title = "🎮 Ranking por Vitórias em Jogos"
                 format_func = lambda row: f"{row[1]} vitórias"
+                top_games = await self.db.get_game_leaderboard(limit=100)
+                for entry in top_games:
+                    member = interaction.guild.get_member(int(entry["user_id"]))
+                    if member:
+                        rows.append((entry["user_id"], entry["wins"]))
+                    if len(rows) == 10:
+                        break
                 
             elif categoria == "messages":
                 query = """SELECT user_id, messages_sent 
@@ -489,6 +503,8 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "📨 Ranking por Mensagens Enviadas"
                 format_func = lambda row: f"{row[1]:,} mensagens"
+                async with self.db.execute(query, (guild_id,)) as cursor:
+                    rows = await cursor.fetchall()
                 
             elif categoria == "streaks":
                 query = """SELECT user_id, daily_streak 
@@ -498,9 +514,8 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "🔥 Ranking por Streak Diário"
                 format_func = lambda row: f"{row[1]} dias"
-            
-            async with self.db.execute(query, (guild_id,)) as cursor:
-                rows = await cursor.fetchall()
+                async with self.db.execute(query, (guild_id,)) as cursor:
+                    rows = await cursor.fetchall()
             
             embed = discord.Embed(
                 title=title,
@@ -521,7 +536,7 @@ class SocialCog(commands.Cog):
                     medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"**{i}.**"
                     leaderboard_text += f"{medal} {user.display_name}: {value}\n"
                     
-                except:
+                except (TypeError, ValueError):
                     continue
             
             if not leaderboard_text:
@@ -829,31 +844,6 @@ class SocialCog(commands.Cog):
             )
         
         await interaction.response.send_message(embed=embed)
-
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member):
-        """Sistema de boas-vindas + verificação de streak rewards"""
-        guild_id = str(member.guild.id)
-        
-        # Sistema de welcome messages existente
-        if guild_id in self.welcome_config.get("guilds", {}):
-            config = self.welcome_config["guilds"][guild_id]
-            if config.get("enabled", False):
-                channel_id = config.get("channel_id")
-                channel = member.guild.get_channel(int(channel_id)) if channel_id else None
-                
-                if channel:
-                    message = config.get("message", "Bem-vindo {user}!")
-                    message = message.replace("{user}", member.mention)
-                    message = message.replace("{server}", member.guild.name)
-                    message = message.replace("{count}", str(member.guild.member_count))
-                    
-                    try:
-                        await channel.send(message)
-                    except:
-                        pass
-    
     @commands.Cog.listener()
     async def on_message_streak_reward(self, user_id: str, guild_id: str, streak_count: int):
         """Sistema automático de recompensas por streaks"""
@@ -879,21 +869,20 @@ class SocialCog(commands.Cog):
                     await self.db.add_badge(
                         user_id, 
                         guild_id,
+                        f"streak_reward_{streak_count}",
                         badge_name,
-                        f"Obtida por {streak_count} dias de streak consecutivo!",
-                        "🔥"
+                        "🔥",
+                        f"Obtida por {streak_count} dias de streak consecutivo!"
                     )
                 
                 # Adicionar dinheiro (se o sistema de economia existir)
                 if "money" in reward:
-                    try:
-                        async with self.db.execute(
-                            "UPDATE economy SET balance = balance + ? WHERE user_id = ? AND guild_id = ?",
-                            (reward["money"], user_id, guild_id)
-                        ):
-                            await self.db.commit()
-                    except:
-                        pass
+                    await self.db.add_money(
+                        user_id,
+                        reward["money"],
+                        transaction_type="streak_reward",
+                        description=f"Recompensa de streak de {streak_count} dias"
+                    )
                 
                 # Adicionar XP bonus
                 if "xp" in reward:
@@ -1014,8 +1003,8 @@ class SocialCog(commands.Cog):
                         f"👋 **{interaction.user.display_name}** enviou-te um pedido de amizade em **{interaction.guild.name}**!\n"
                         f"Usa `/amigos pending` para aceitar ou rejeitar."
                     )
-                except:
-                    pass
+                except discord.HTTPException as error:
+                    self.bot.logger.debug(f"Falha ao enviar DM de amizade para {friend_id}: {error}")
                 
                 await interaction.response.send_message(
                     f"✅ Pedido de amizade enviado para {utilizador.display_name}!",
@@ -1134,8 +1123,8 @@ class SocialCog(commands.Cog):
                 await utilizador.send(
                     f"🎉 **{interaction.user.display_name}** aceitou o teu pedido de amizade em **{interaction.guild.name}**!"
                 )
-            except:
-                pass
+            except discord.HTTPException as error:
+                self.bot.logger.debug(f"Falha ao notificar aceitação de amizade para {friend_id}: {error}")
             
             await interaction.response.send_message(
                 f"✅ Agora és amigo de {utilizador.display_name}! 🎉",
@@ -1309,16 +1298,12 @@ class SocialCog(commands.Cog):
             price = tier_prices[tier]
             
             # Verificar se tem dinheiro
-            async with self.db.execute(
-                "SELECT balance FROM economy WHERE user_id = ? AND guild_id = ?",
-                (user_id, guild_id)
-            ) as cursor:
-                economy_data = await cursor.fetchone()
-            
-            if not economy_data or economy_data[0] < price:
+            balance = await self.db.get_user_balance(user_id)
+
+            if balance < price:
                 await interaction.response.send_message(
                     f"❌ Precisas de **${price:,}** para fazer upgrade para {tier_names[tier]}!\n"
-                    f"Tens apenas **${economy_data[0]:,}** disponíveis." if economy_data else "❌ Não tens dinheiro suficiente!",
+                    f"Tens apenas **${balance:,}** disponíveis.",
                     ephemeral=True
                 )
                 return
@@ -1330,10 +1315,19 @@ class SocialCog(commands.Cog):
             )
             
             # Deduzir dinheiro
-            await self.db.execute(
-                "UPDATE economy SET balance = balance - ? WHERE user_id = ? AND guild_id = ?",
-                (price, user_id, guild_id)
+            removed = await self.db.remove_money(
+                user_id,
+                price,
+                transaction_type="marriage_upgrade",
+                description=f"Upgrade de anel para {tier_names[tier]}"
             )
+
+            if not removed:
+                await interaction.response.send_message(
+                    "❌ Não foi possível debitar o valor do upgrade. Tenta novamente.",
+                    ephemeral=True
+                )
+                return
             
             await self.db.commit()
             
@@ -1358,8 +1352,8 @@ class SocialCog(commands.Cog):
                     await partner.send(
                         f"💍 {interaction.user.display_name} fez upgrade do vosso anel de casamento para {tier_names[tier]}!"
                     )
-                except:
-                    pass
+                except discord.HTTPException as error:
+                    self.bot.logger.debug(f"Falha ao notificar parceiro {partner_id} sobre upgrade de casamento: {error}")
         
         except Exception as e:
             self.bot.logger.error(f"Erro no upgrade de casamento: {e}")
@@ -1400,21 +1394,13 @@ class SocialCog(commands.Cog):
                         reward_xp = years * 1000
                         
                         for user_id in [user1_id, user2_id]:
-                            # Adicionar dinheiro
-                            await self.db.execute(
-                                """INSERT INTO economy (user_id, guild_id, balance)
-                                   VALUES (?, ?, ?)
-                                   ON CONFLICT(user_id, guild_id) 
-                                   DO UPDATE SET balance = balance + ?""",
-                                (user_id, guild_id, reward_money, reward_money)
+                            await self.db.add_money(
+                                user_id,
+                                reward_money,
+                                transaction_type="anniversary_reward",
+                                description=f"Recompensa de {years}º aniversário"
                             )
-                            
-                            # Adicionar XP
-                            await self.db.execute(
-                                """UPDATE user_levels SET xp = xp + ? 
-                                   WHERE user_id = ? AND guild_id = ?""",
-                                (reward_xp, user_id, guild_id)
-                            )
+                            await self.db.update_user_xp(user_id, guild_id, reward_xp)
                             
                             # Adicionar badge de aniversário
                             badge_name = f"💕 {years}º Aniversário"
@@ -1448,8 +1434,8 @@ class SocialCog(commands.Cog):
                                 if user:
                                     try:
                                         await user.send(message)
-                                    except:
-                                        pass
+                                    except discord.HTTPException as error:
+                                        self.bot.logger.debug(f"Falha ao enviar DM de aniversário de casamento: {error}")
         
         except Exception as e:
             self.bot.logger.error(f"Erro ao verificar aniversários: {e}")
