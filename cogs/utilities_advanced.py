@@ -1229,8 +1229,8 @@ class UtilitiesAdvanced(commands.Cog):
                             INSERT INTO voice_totals (user_id, guild_id, total_time, sessions_count, last_session)
                             VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
                             ON CONFLICT(user_id, guild_id) DO UPDATE SET
-                                total_time = total_time + ?,
-                                sessions_count = sessions_count + 1,
+                                total_time = voice_totals.total_time + EXCLUDED.total_time,
+                                sessions_count = voice_totals.sessions_count + EXCLUDED.sessions_count,
                                 last_session = CURRENT_TIMESTAMP
                         """, (
                             str(member.id),
@@ -1275,8 +1275,8 @@ class UtilitiesAdvanced(commands.Cog):
                             INSERT INTO voice_totals (user_id, guild_id, total_time, sessions_count, last_session)
                             VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
                             ON CONFLICT(user_id, guild_id) DO UPDATE SET
-                                total_time = total_time + ?,
-                                sessions_count = sessions_count + 1,
+                                total_time = voice_totals.total_time + EXCLUDED.total_time,
+                                sessions_count = voice_totals.sessions_count + EXCLUDED.sessions_count,
                                 last_session = CURRENT_TIMESTAMP
                         """, (
                             str(member.id),

@@ -56,7 +56,8 @@ class Database:
         if not self.db_path:
             raise ValueError("DATABASE_URL não configurado")
         if self.connection is None:
-            self.connection = await aiosqlite.connect(self.db_path)
+            self.connection = aiosqlite.connect(self.db_path)
+            await self.connection._ensure_connection()
         return self.connection
 
     def execute(self, query: str, params: tuple[Any, ...] = ()) -> DatabaseOperation:
@@ -505,8 +506,8 @@ class Database:
                 INSERT INTO users (user_id, balance, total_earned)
                 VALUES (?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
-                    balance = balance + ?,
-                    total_earned = total_earned + ?,
+                    balance = users.balance + ?,
+                    total_earned = users.total_earned + ?,
                     updated_at = CURRENT_TIMESTAMP
             """, (user_id, 2500 + amount, amount, amount, amount))
             
@@ -555,8 +556,8 @@ class Database:
                 INSERT INTO users (user_id, balance, total_earned)
                 VALUES (?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
-                    balance = balance + ?,
-                    total_earned = total_earned + ?,
+                    balance = users.balance + ?,
+                    total_earned = users.total_earned + ?,
                     updated_at = CURRENT_TIMESTAMP
             """, (to_user, 2500 + amount, amount, amount, amount))
             
@@ -610,7 +611,7 @@ class Database:
                 ON CONFLICT(user_id, guild_id) DO UPDATE SET
                     xp = ?,
                     level = ?,
-                    messages_sent = messages_sent + 1,
+                    messages_sent = user_levels.messages_sent + 1,
                     last_message_at = ?
             """, (user_id, guild_id, new_xp, new_level, new_xp, new_level, datetime.now().timestamp()))
             
@@ -644,7 +645,7 @@ class Database:
                     INSERT INTO user_levels (user_id, guild_id, xp, level, messages_sent, updated_at)
                     VALUES (?, ?, ?, ?, 1, ?)
                     ON CONFLICT(user_id, guild_id) 
-                    DO UPDATE SET xp = ?, level = ?, messages_sent = messages_sent + 1, updated_at = ?
+                    DO UPDATE SET xp = ?, level = ?, messages_sent = user_levels.messages_sent + 1, updated_at = ?
                 """, (user_id, guild_id, xp, level, timestamp, xp, level, timestamp))
             else:
                 await db.execute("""
@@ -754,15 +755,35 @@ class Database:
             
             await db.commit()
 
-    async def get_game_leaderboard(self, limit: int = 10):
-        """Obtém ranking agregado de vitórias por utilizador."""
+    async def get_game_leaderboard(self, game_type: Optional[str] = None, limit: int = 10):
+        """Obtém leaderboard agregado ou de um jogo específico."""
         async with aiosqlite.connect(self.db_path) as db:
+            if game_type:
+                async with db.execute("""
+                    SELECT user_id, wins, total_games, total_earnings, best_streak
+                    FROM game_stats
+                    WHERE game_type = ?
+                    ORDER BY wins DESC, total_earnings DESC
+                    LIMIT ?
+                """, (game_type, limit)) as cursor:
+                    rows = await cursor.fetchall()
+                    return [
+                        {
+                            "user_id": row[0],
+                            "wins": row[1],
+                            "total_games": row[2],
+                            "total_earnings": row[3],
+                            "best_streak": row[4]
+                        }
+                        for row in rows
+                    ]
+
             async with db.execute(
                 """
                 SELECT user_id, COALESCE(SUM(wins), 0) AS total_wins
                 FROM game_stats
                 GROUP BY user_id
-                HAVING total_wins > 0
+                HAVING COALESCE(SUM(wins), 0) > 0
                 ORDER BY total_wins DESC
                 LIMIT ?
                 """,
@@ -803,28 +824,6 @@ class Database:
                         }
                     return stats
         return {}
-    
-    async def get_game_leaderboard(self, game_type: str, limit: int = 10):
-        """Obtém leaderboard de um jogo específico"""
-        async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute("""
-                SELECT user_id, wins, total_games, total_earnings, best_streak
-                FROM game_stats
-                WHERE game_type = ?
-                ORDER BY wins DESC, total_earnings DESC
-                LIMIT ?
-            """, (game_type, limit)) as cursor:
-                rows = await cursor.fetchall()
-                return [
-                    {
-                        "user_id": row[0],
-                        "wins": row[1],
-                        "total_games": row[2],
-                        "total_earnings": row[3],
-                        "best_streak": row[4]
-                    }
-                    for row in rows
-                ]
     
     # --- Métodos do Sistema Social Expandido ---
     

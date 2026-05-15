@@ -104,9 +104,12 @@
   },
   
   "role_backup": {
-    "enabled": false,
-    "restore_on_unban": true,
-    "_comment_backup": "Guardar roles ao banir para restaurar ao desbanir"
+    "enabled": true,
+    "restore_on_unban": false,
+    "restore_on_rejoin": true,
+    "backup_on_remove": true,
+    "reset_on_ban": true,
+    "_comment_backup": "Guardar roles quando sair ou for expulso, restaurar ao regressar e limpar no ban"
   },
   
   "timeout_presets": {

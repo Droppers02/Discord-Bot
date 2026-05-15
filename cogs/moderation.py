@@ -76,6 +76,13 @@ class Moderation(commands.Cog):
                 "timeout_presets": {},
                 "appeals": {"enabled": False, "channel_id": 0}
             }
+
+            role_backup = self.config.setdefault("role_backup", {})
+            role_backup.setdefault("enabled", False)
+            role_backup.setdefault("restore_on_unban", True)
+            role_backup.setdefault("restore_on_rejoin", True)
+            role_backup.setdefault("backup_on_remove", True)
+            role_backup.setdefault("reset_on_ban", True)
     
     async def cog_load(self):
         """Carregado quando o cog é inicializado"""
@@ -135,16 +142,20 @@ class Moderation(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         """Aplicar quarentena a novos membros, monitorar raids e restaurar roles"""
-        # Restaurar roles se veio de um unban
-        if self.config.get("role_backup", {}).get("enabled", False) and \
-           self.config.get("role_backup", {}).get("restore_on_unban", True):
+        role_backup_config = self.config.get("role_backup", {})
+
+        # Restaurar roles persistidos quando o membro regressa ao servidor.
+        if role_backup_config.get("enabled", False) and (
+            role_backup_config.get("restore_on_rejoin", True)
+            or role_backup_config.get("restore_on_unban", True)
+        ):
             # Esperar um pouco para garantir que o membro foi totalmente adicionado
             await asyncio.sleep(2)
             restored = await self.restore_user_roles(member.id, member.guild.id)
             if restored:
                 embed = discord.Embed(
                     title="♻️ Roles Restaurados",
-                    description=f"Roles de {member.mention} foram restaurados após unban",
+                    description=f"Roles de {member.mention} foram restaurados quando regressou ao servidor",
                     color=discord.Color.green(),
                     timestamp=datetime.now()
                 )
@@ -178,7 +189,7 @@ class Moderation(commands.Cog):
         role = member.guild.get_role(role_id)
         if not role:
             return
-        
+
         try:
             await member.add_roles(role, reason="Quarentena automática para novo membro")
             self.quarantine_users[member.id] = datetime.now().timestamp()
@@ -201,6 +212,37 @@ class Moderation(commands.Cog):
             
         except Exception as e:
             bot_logger.error(f"Erro ao aplicar quarentena a {member}: {e}")
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member):
+        """Guardar roles persistentes quando o membro sai ou é expulso."""
+        if member.bot:
+            return
+
+        role_backup_config = self.config.get("role_backup", {})
+        if not role_backup_config.get("enabled", False):
+            return
+        if not role_backup_config.get("backup_on_remove", True):
+            return
+
+        role_ids = [
+            role.id
+            for role in member.roles
+            if role != member.guild.default_role and not role.managed
+        ]
+
+        await self.backup_user_roles(member.id, member.guild.id, role_ids, "Saída ou expulsão")
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, user: discord.abc.User):
+        """No ban, limpar backup de roles para evitar restauros futuros."""
+        role_backup_config = self.config.get("role_backup", {})
+        if not role_backup_config.get("enabled", False):
+            return
+        if not role_backup_config.get("reset_on_ban", True):
+            return
+
+        await self.clear_user_role_backup(user.id, guild.id)
     
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -922,28 +964,43 @@ class Moderation(commands.Cog):
                 row = await cursor.fetchone()
                 return row[0] if row else 0
     
-    async def backup_user_roles(self, user_id: int, guild_id: int, role_ids: list, reason: str = "Ban"):
-        """Fazer backup dos roles de um usuário antes do ban"""
+    async def clear_user_role_backup(self, user_id: int, guild_id: int):
+        """Apaga backups de roles existentes para um utilizador."""
+        async with aiosqlite.connect(self.bot.db_path) as db:
+            await db.execute(
+                "DELETE FROM role_backups WHERE user_id = ? AND guild_id = ?",
+                (str(user_id), str(guild_id))
+            )
+            await db.commit()
+
+    async def backup_user_roles(self, user_id: int, guild_id: int, role_ids: list, reason: str = "Saída"):
+        """Guarda a fotografia atual dos roles persistentes de um utilizador."""
+        await self.clear_user_role_backup(user_id, guild_id)
+
+        normalized_role_ids = sorted({int(role_id) for role_id in role_ids})
+        if not normalized_role_ids:
+            return
+
         async with aiosqlite.connect(self.bot.db_path) as db:
             import json
             
             await db.execute(
                 """INSERT INTO role_backups (user_id, guild_id, role_ids, reason)
                    VALUES (?, ?, ?, ?)""",
-                (user_id, guild_id, json.dumps(role_ids), reason)
+                (str(user_id), str(guild_id), json.dumps(normalized_role_ids), reason)
             )
             await db.commit()
             
-            bot_logger.info(f"Backup de roles criado para User {user_id} em Guild {guild_id} - {len(role_ids)} roles")
+            bot_logger.info(f"Backup de roles criado para User {user_id} em Guild {guild_id} - {len(normalized_role_ids)} roles")
     
     async def restore_user_roles(self, user_id: int, guild_id: int) -> bool:
-        """Restaurar roles de um usuário após unban"""
+        """Restaura roles persistidos quando o utilizador regressa ao servidor."""
         async with aiosqlite.connect(self.bot.db_path) as db:
             import json
             
             async with db.execute(
                 "SELECT role_ids FROM role_backups WHERE user_id = ? AND guild_id = ? ORDER BY backed_up_at DESC LIMIT 1",
-                (user_id, guild_id)
+                (str(user_id), str(guild_id))
             ) as cursor:
                 row = await cursor.fetchone()
                 
@@ -952,27 +1009,27 @@ class Moderation(commands.Cog):
                 
                 role_ids = json.loads(row[0])
                 
-                guild = self.bot.get_guild(guild_id)
+                guild = self.bot.get_guild(int(guild_id))
                 if not guild:
                     return False
                 
-                member = guild.get_member(user_id)
+                member = guild.get_member(int(user_id))
                 if not member:
                     return False
                 
                 # Restaurar roles
                 restored = 0
                 for role_id in role_ids:
-                    role = guild.get_role(role_id)
-                    if role and role < guild.me.top_role:  # Verificar hierarquia
+                    role = guild.get_role(int(role_id))
+                    if role and not role.managed and role < guild.me.top_role and role not in member.roles:
                         try:
-                            await member.add_roles(role, reason="Restauração após unban")
+                            await member.add_roles(role, reason="Restauração de roles persistidos")
                             restored += 1
                         except:
                             pass
                 
                 bot_logger.info(f"Roles restaurados: {restored}/{len(role_ids)} para User {user_id} em Guild {guild_id}")
-                return True
+                return restored > 0
     
     def has_mod_permissions():
         """Decorador para verificar permissões de moderador"""
@@ -1026,6 +1083,11 @@ class Moderation(commands.Cog):
             return
         
         try:
+            role_backup_config = self.config.get("role_backup", {})
+
+            if role_backup_config.get("enabled", False) and role_backup_config.get("reset_on_ban", True):
+                await self.clear_user_role_backup(membro.id, interaction.guild.id)
+
             # Tentar enviar DM ao utilizador
             try:
                 dm_embed = EmbedBuilder.moderation(
@@ -1116,10 +1178,17 @@ class Moderation(commands.Cog):
             return
         
         try:
-            # Backup de roles se o sistema estiver ativo
-            if self.config.get("role_backup", {}).get("enabled", False):
-                role_ids = [role.id for role in membro.roles if role != interaction.guild.default_role]
-                if role_ids:
+            role_backup_config = self.config.get("role_backup", {})
+
+            if role_backup_config.get("enabled", False):
+                if role_backup_config.get("reset_on_ban", True):
+                    await self.clear_user_role_backup(membro.id, interaction.guild.id)
+                else:
+                    role_ids = [
+                        role.id
+                        for role in membro.roles
+                        if role != interaction.guild.default_role and not role.managed
+                    ]
                     await self.backup_user_roles(membro.id, interaction.guild.id, role_ids, f"Ban por: {motivo}")
             
             # Tentar enviar DM ao utilizador
@@ -1215,9 +1284,10 @@ class Moderation(commands.Cog):
             await interaction.guild.unban(user, reason=f"{interaction.user}: {motivo}")
             
             # Restaurar roles se o sistema estiver ativo e o unban permitir
-            roles_restored = False
-            if self.config.get("role_backup", {}).get("enabled", False) and \
-               self.config.get("role_backup", {}).get("restore_on_unban", True):
+            role_backup_config = self.config.get("role_backup", {})
+            if role_backup_config.get("enabled", False) and \
+               role_backup_config.get("restore_on_unban", True) and \
+               not role_backup_config.get("reset_on_ban", True):
                 # Esperar um pouco para o usuário re-entrar
                 await interaction.response.send_message(
                     f"✅ **{user}** foi desbanido! Se o utilizador voltar ao servidor, os roles serão restaurados automaticamente.",
@@ -2483,42 +2553,61 @@ class Moderation(commands.Cog):
     @setup_group.command(name="rolebackup", description="Configurar backup de roles")
     @app_commands.describe(
         ativar="Ativar ou desativar backup de roles",
-        restaurar_unban="Restaurar roles automaticamente após unban"
+        restaurar_unban="Restaurar roles automaticamente após unban",
+        restaurar_reentrada="Restaurar roles quando o membro voltar a entrar",
+        guardar_saida="Guardar roles quando sair ou for expulso",
+        resetar_ban="Apagar backups quando o membro for banido"
     )
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_rolebackup(
         self,
         interaction: discord.Interaction,
         ativar: Optional[bool] = None,
-        restaurar_unban: Optional[bool] = None
+        restaurar_unban: Optional[bool] = None,
+        restaurar_reentrada: Optional[bool] = None,
+        guardar_saida: Optional[bool] = None,
+        resetar_ban: Optional[bool] = None
     ):
         """Configurar sistema de backup de roles"""
         try:
+            role_backup = self.config.setdefault("role_backup", {})
+
             if ativar is not None:
-                self.config["role_backup"]["enabled"] = ativar
+                role_backup["enabled"] = ativar
             
             if restaurar_unban is not None:
-                self.config["role_backup"]["restore_on_unban"] = restaurar_unban
+                role_backup["restore_on_unban"] = restaurar_unban
+
+            if restaurar_reentrada is not None:
+                role_backup["restore_on_rejoin"] = restaurar_reentrada
+
+            if guardar_saida is not None:
+                role_backup["backup_on_remove"] = guardar_saida
+
+            if resetar_ban is not None:
+                role_backup["reset_on_ban"] = resetar_ban
             
             # Salvar config
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
             
-            status = "✅ Ativado" if self.config["role_backup"]["enabled"] else "❌ Desativado"
+            status = "✅ Ativado" if role_backup["enabled"] else "❌ Desativado"
             
             embed = discord.Embed(
                 title="♻️ Backup de Roles Configurado",
                 description=f"**Status:** {status}",
-                color=discord.Color.green() if self.config["role_backup"]["enabled"] else discord.Color.gray()
+                color=discord.Color.green() if role_backup["enabled"] else discord.Color.gray()
             )
             
-            config = self.config["role_backup"]
-            embed.add_field(name="Restaurar no Unban", value="✅" if config["restore_on_unban"] else "❌", inline=True)
+            embed.add_field(name="Restaurar no Unban", value="✅" if role_backup["restore_on_unban"] else "❌", inline=True)
+            embed.add_field(name="Restaurar na Reentrada", value="✅" if role_backup["restore_on_rejoin"] else "❌", inline=True)
+            embed.add_field(name="Guardar ao Sair/Kick", value="✅" if role_backup["backup_on_remove"] else "❌", inline=True)
+            embed.add_field(name="Resetar no Ban", value="✅" if role_backup["reset_on_ban"] else "❌", inline=True)
             
             embed.add_field(
                 name="ℹ️ Como Funciona",
-                value="Quando um membro é banido, seus roles são salvos. "
-                      "Se restaurar no unban estiver ativo, os roles serão restaurados quando o membro voltar.",
+                value="Quando um membro sai ou é expulso, os roles podem ser guardados para restaurar quando regressar. "
+                      "Se resetar no ban estiver ativo, qualquer backup é apagado quando o membro é banido.",
                 inline=False
             )
             

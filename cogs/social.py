@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import aiosqlite
 import random
 import asyncio
 from datetime import datetime, timedelta
@@ -112,15 +113,16 @@ class SocialCog(commands.Cog):
             await self.db.update_streak(user_id, guild_id, "messages", 1)
             
             # Registrar estatísticas diárias para gráficos
-            import aiosqlite
             today = datetime.utcnow().date().isoformat()
             async with aiosqlite.connect(self.db.db_path) as db:
                 await db.execute(
                     """INSERT INTO message_stats (user_id, guild_id, date, message_count, xp_gained)
                        VALUES (?, ?, ?, 1, ?)
                        ON CONFLICT(user_id, guild_id, date)
-                       DO UPDATE SET message_count = message_count + 1, xp_gained = xp_gained + ?""",
-                    (user_id, guild_id, today, xp_gain, xp_gain)
+                       DO UPDATE SET
+                           message_count = message_stats.message_count + EXCLUDED.message_count,
+                           xp_gained = message_stats.xp_gained + EXCLUDED.xp_gained""",
+                    (user_id, guild_id, today, xp_gain)
                 )
                 await db.commit()
             
@@ -386,7 +388,7 @@ class SocialCog(commands.Cog):
                 """INSERT INTO user_levels (user_id, guild_id, reputation, xp, level)
                    VALUES (?, ?, 1, 0, 1)
                    ON CONFLICT(user_id, guild_id) 
-                   DO UPDATE SET reputation = reputation + 1""",
+                   DO UPDATE SET reputation = user_levels.reputation + 1""",
                 (str(utilizador.id), str(interaction.guild.id))
             )
             await self.db.commit()
@@ -443,8 +445,9 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "🏆 Ranking por XP/Nível"
                 format_func = lambda row: f"Nível {row[2]} ({row[1]:,} XP)"
-                async with self.db.execute(query, (guild_id,)) as cursor:
-                    rows = await cursor.fetchall()
+                async with aiosqlite.connect(self.db.db_path) as db:
+                    async with db.execute(query, (guild_id,)) as cursor:
+                        rows = await cursor.fetchall()
                 
             elif categoria == "reputation":
                 query = """SELECT user_id, reputation, level 
@@ -454,8 +457,9 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "👍 Ranking por Reputação"
                 format_func = lambda row: f"{row[1]} likes"
-                async with self.db.execute(query, (guild_id,)) as cursor:
-                    rows = await cursor.fetchall()
+                async with aiosqlite.connect(self.db.db_path) as db:
+                    async with db.execute(query, (guild_id,)) as cursor:
+                        rows = await cursor.fetchall()
                 
             elif categoria == "money":
                 title = "💰 Ranking por Dinheiro"
@@ -487,8 +491,9 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "📨 Ranking por Mensagens Enviadas"
                 format_func = lambda row: f"{row[1]:,} mensagens"
-                async with self.db.execute(query, (guild_id,)) as cursor:
-                    rows = await cursor.fetchall()
+                async with aiosqlite.connect(self.db.db_path) as db:
+                    async with db.execute(query, (guild_id,)) as cursor:
+                        rows = await cursor.fetchall()
                 
             elif categoria == "streaks":
                 query = """SELECT user_id, daily_streak 
@@ -498,8 +503,9 @@ class SocialCog(commands.Cog):
                           LIMIT 10"""
                 title = "🔥 Ranking por Streak Diário"
                 format_func = lambda row: f"{row[1]} dias"
-                async with self.db.execute(query, (guild_id,)) as cursor:
-                    rows = await cursor.fetchall()
+                async with aiosqlite.connect(self.db.db_path) as db:
+                    async with db.execute(query, (guild_id,)) as cursor:
+                        rows = await cursor.fetchall()
             
             embed = discord.Embed(
                 title=title,
@@ -1454,15 +1460,16 @@ class SocialCog(commands.Cog):
         
         try:
             # Buscar dados de atividade
-            async with self.db.execute(
-                """SELECT date, message_count, xp_gained 
-                   FROM message_stats 
-                   WHERE user_id = ? AND guild_id = ? 
-                   AND date >= date('now', ?)
-                   ORDER BY date ASC""",
-                (user_id, guild_id, f'-{days} days')
-            ) as cursor:
-                stats = await cursor.fetchall()
+            async with aiosqlite.connect(self.db.db_path) as db:
+                async with db.execute(
+                    """SELECT date, message_count, xp_gained 
+                       FROM message_stats 
+                       WHERE user_id = ? AND guild_id = ? 
+                       AND date >= CURRENT_DATE - CAST(? AS INTEGER)
+                       ORDER BY date ASC""",
+                    (user_id, guild_id, days)
+                ) as cursor:
+                    stats = await cursor.fetchall()
             
             if not stats:
                 await interaction.followup.send(
