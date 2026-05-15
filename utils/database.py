@@ -44,7 +44,12 @@ class Database:
     """Classe principal para gestão da base de dados"""
     
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL", "")
+        self.db_path = (
+            db_path
+            or os.getenv("DATABASE_URL")
+            or os.getenv("NEON_DATABASE_URL")
+            or os.getenv("SQL_DATABASE_URL", "")
+        )
         self.logger = logging.getLogger("EPA BOT.Database")
         self.connection: Optional[aiosqlite.Connection] = None
 
